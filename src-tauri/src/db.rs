@@ -40,6 +40,20 @@ const MIGRATIONS: &[&str] = &[
         INSERT INTO notes_fts (rowid, text) VALUES (new.seq, new.text);
     END;
     INSERT INTO notes_fts (notes_fts) VALUES ('rebuild');",
+    // 3: Vektoren für die semantische Suche. Chunk 0 = ganze Notiz, danach Sätze.
+    "CREATE TABLE note_vectors (
+        note_seq INTEGER NOT NULL REFERENCES notes (seq) ON DELETE CASCADE,
+        chunk    INTEGER NOT NULL,
+        start    INTEGER NOT NULL,
+        end      INTEGER NOT NULL,
+        model    TEXT NOT NULL,
+        vector   BLOB NOT NULL,
+        PRIMARY KEY (note_seq, chunk)
+    ) WITHOUT ROWID;
+    -- Geänderter Text → Vektoren veraltet, der Hintergrund-Thread rechnet neu.
+    CREATE TRIGGER note_vectors_stale AFTER UPDATE OF text ON notes BEGIN
+        DELETE FROM note_vectors WHERE note_seq = new.seq;
+    END;",
 ];
 
 pub struct Db {

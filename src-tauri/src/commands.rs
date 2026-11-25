@@ -7,6 +7,7 @@
 use tauri::{AppHandle, Emitter, State};
 
 use crate::db::Db;
+use crate::embedder::SemanticIndex;
 use crate::models::{
     AiCommand, EVENT_NOTES_CHANGED, Filter, Note, NoteCounts, NotesChanged, Range, SearchResult,
     Settings, SettingsPatch, Source,
@@ -38,10 +39,12 @@ pub fn note_get(db: State<Db>, id: String) -> CommandResult<Note> {
 pub fn note_create(
     app: AppHandle,
     db: State<Db>,
+    index: State<SemanticIndex>,
     text: String,
     source: Source,
 ) -> CommandResult<Note> {
     let note = notes::create(&db.lock(), &text, source)?;
+    index.notify_changed();
     // Quick Capture läuft in einem eigenen Fenster, das Hauptfenster weiss nichts davon.
     if source == Source::Quick {
         let payload = NotesChanged {
@@ -55,8 +58,15 @@ pub fn note_create(
 }
 
 #[tauri::command(async)]
-pub fn note_update(db: State<Db>, id: String, text: String) -> CommandResult<Note> {
-    notes::update(&db.lock(), &id, &text)
+pub fn note_update(
+    db: State<Db>,
+    index: State<SemanticIndex>,
+    id: String,
+    text: String,
+) -> CommandResult<Note> {
+    let note = notes::update(&db.lock(), &id, &text)?;
+    index.notify_changed();
+    Ok(note)
 }
 
 #[tauri::command(async)]
@@ -82,11 +92,14 @@ pub fn note_delete_forever(db: State<Db>, id: String) -> CommandResult<()> {
 #[tauri::command(async)]
 pub fn search(
     db: State<Db>,
+    index: State<SemanticIndex>,
     request_id: String,
     query: String,
     range: Range,
 ) -> CommandResult<SearchResult> {
-    let hits = crate::search::search(&db.lock(), &query, range)?;
+    // Erst den Vektor berechnen, dann die Datenbank sperren.
+    let vector = index.query_vector(&query);
+    let hits = crate::search::search(&db.lock(), &query, range, vector.as_deref())?;
     Ok(SearchResult {
         hits,
         answer_request_id: None,

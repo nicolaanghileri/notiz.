@@ -1,5 +1,6 @@
 mod commands;
 mod db;
+mod embedder;
 mod models;
 mod notes;
 mod search;
@@ -10,8 +11,10 @@ use tauri::Manager;
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
-            let path = app.path().app_data_dir()?.join("notiz.db");
-            app.manage(db::Db::open(&path)?);
+            let data_dir = app.path().app_data_dir()?;
+            app.manage(db::Db::open(&data_dir.join("notiz.db"))?);
+            app.manage(embedder::SemanticIndex::new());
+            embedder::start(app.handle().clone(), data_dir.join("models"));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

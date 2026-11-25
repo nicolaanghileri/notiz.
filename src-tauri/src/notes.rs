@@ -122,6 +122,12 @@ pub fn get(conn: &Connection, id: &str) -> Result<Note, String> {
         .map_err(db_error)
 }
 
+pub fn get_by_seq(conn: &Connection, seq: i64) -> Result<Note, String> {
+    conn.prepare_cached(&format!("SELECT {COLUMNS} FROM notes WHERE seq = ?1"))
+        .and_then(|mut stmt| stmt.query_row([seq], from_row))
+        .map_err(db_error)
+}
+
 pub fn create(conn: &Connection, text: &str, source: Source) -> Result<Note, String> {
     let now = now_iso();
     conn.query_row(
