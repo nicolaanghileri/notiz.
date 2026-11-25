@@ -1,0 +1,21 @@
+[package]
+name = "notiz"
+version = "0.1.0"
+description = "Desktop-Notizen-App"
+edition = "2024"
+rust-version = "1.90"
+
+[lib]
+# Eigener Name, weil lib und bin unter Windows sonst kollidieren.
+name = "notiz_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.6", features = [] }
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+tauri = { version = "2.12.7", features = [] }
+
+[dev-dependencies]
+serde_json = "1.0"

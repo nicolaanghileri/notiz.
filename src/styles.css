@@ -1,0 +1,9 @@
+@import "tailwindcss";
+/* Inter, lokal gebündelt (inkl. optischer Grössen und Kursive). */
+@import "@fontsource-variable/inter/opsz.css";
+@import "@fontsource-variable/inter/opsz-italic.css";
+
+@theme {
+  --font-sans:
+    "Inter Variable", "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+}
