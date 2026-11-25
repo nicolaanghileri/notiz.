@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import { Editor } from "./components/Editor";
 import { NotesView } from "./components/NotesView";
-import { Sidebar } from "./components/Sidebar";
+import { FILTER_LABELS, Sidebar } from "./components/Sidebar";
 import { ToastProvider, errorText, useToast } from "./components/Toast";
 import * as api from "./lib/api";
 import { modKey } from "./lib/platform";
@@ -9,8 +10,12 @@ import type { Filter, Note, NoteCounts } from "./lib/types";
 
 export type View =
   | { kind: "notes"; filter: Filter }
-  | { kind: "editor"; id: string | null; back: Filter | "search" }
+  | { kind: "editor"; id: string | null; back: Filter | "search"; session: number }
   | { kind: "search" };
+
+let sessionCounter = 0;
+/** Jede geöffnete Notiz bekommt einen eigenen Editor (key), auch wenn eine neue Notiz später ihre ID erhält */
+const nextSession = () => ++sessionCounter;
 
 const FILTER_SHORTCUTS: Filter[] = ["all", "today", "last7", "quick", "pinned"];
 
@@ -67,12 +72,13 @@ function Shell() {
     setView((current) => ({
       kind: "editor",
       id: null,
+      session: nextSession(),
       back: current.kind === "notes" ? current.filter : current.kind === "search" ? "search" : current.back,
     }));
   }, []);
 
   const openNote = useCallback((note: Note, back: Filter | "search") => {
-    setView({ kind: "editor", id: note.id, back });
+    setView({ kind: "editor", id: note.id, back, session: nextSession() });
   }, []);
 
   // Globale Shortcuts (BRIEF Abschnitt 9)
@@ -95,7 +101,25 @@ function Shell() {
     return () => window.removeEventListener("keydown", onKey);
   }, [newNote, showFilter]);
 
-  void toast;
+  // ⌘Z ausserhalb von Textfeldern: Rückgängig des sichtbaren Toasts
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || !modKey(e) || e.key.toLowerCase() !== "z" || e.shiftKey) return;
+      const target = e.target as HTMLElement;
+      if (target.matches("input, textarea")) return;
+      if (toast.undo()) e.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [toast]);
+
+  const goBack = useCallback(() => {
+    setView((current) => {
+      if (current.kind !== "editor") return current;
+      return current.back === "search" ? { kind: "search" } : { kind: "notes", filter: current.back };
+    });
+  }, []);
+
   const active = view.kind === "notes" ? view.filter : view.kind === "search" ? "search" : view.back === "search" ? "search" : view.back;
 
   return (
@@ -117,7 +141,20 @@ function Shell() {
             onOpen={(note) => openNote(note, view.filter)}
           />
         )}
-        {view.kind !== "notes" && (
+        {view.kind === "editor" && (
+          <Editor
+            key={view.session}
+            noteId={view.id}
+            backLabel={view.back === "search" ? "Suche" : FILTER_LABELS[view.back]}
+            onBack={goBack}
+            onChanged={bump}
+            onCreated={(id) => setView((current) => (current.kind === "editor" ? { ...current, id } : current))}
+            onOpen={(id) =>
+              setView((current) => ({ kind: "editor", id, back: current.kind === "editor" ? current.back : "all", session: nextSession() }))
+            }
+          />
+        )}
+        {view.kind === "search" && (
           <button className="m-8 text-muted" onClick={() => showFilter(lastFilter)}>
             ← zurück (folgt)
           </button>
