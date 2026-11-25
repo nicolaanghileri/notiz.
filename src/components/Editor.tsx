@@ -1,5 +1,5 @@
 import { ArrowLeft, Copy, CopyPlus, Ellipsis, PanelRight, Pin, RotateCcw, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import * as api from "../lib/api";
 import { formatRelative } from "../lib/dates";
 import { History, type EditState } from "../lib/history";
@@ -7,6 +7,10 @@ import { wordCount } from "../lib/noteText";
 import { isMac, kbd, modKey } from "../lib/platform";
 import { NoteSaver, type SaveStatus } from "../lib/saver";
 import type { Note } from "../lib/types";
+import { runAi, type AiRequest } from "../lib/ai";
+import { changeCount, diffWords } from "../lib/diff";
+import type { AiCommand } from "../lib/types";
+import { AiMenu, AI_COMMANDS, commandLabel, DiffLegend, PreviewBody, PreviewPanel, previewKeyHandler, type PreviewMode, type PreviewState } from "./ai";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { errorText, useToast } from "./Toast";
 import { Button, cx, IconButton } from "./ui";
@@ -27,9 +31,19 @@ export interface EditorProps {
   /** Liste/Zahlen neu laden */
   onChanged: () => void;
   onOpen: (id: string) => void;
+  onOpenSettings?: () => void;
 }
 
-export function Editor({ noteId, backLabel, onBack, onCreated, onChanged, onOpen }: EditorProps) {
+interface Preview {
+  command: AiCommand;
+  instruction?: string;
+  start: number;
+  end: number;
+  state: PreviewState;
+  mode: PreviewMode;
+}
+
+export function Editor({ noteId, backLabel, onBack, onCreated, onChanged, onOpen, onOpenSettings }: EditorProps) {
   const toast = useToast();
   const [note, setNote] = useState<Note | null>(null);
   const [loaded, setLoaded] = useState(noteId === null);
@@ -40,6 +54,17 @@ export function Editor({ noteId, backLabel, onBack, onCreated, onChanged, onOpen
   const [moreOpen, setMoreOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
   const [confirmForever, setConfirmForever] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuActive, setMenuActive] = useState(0);
+  const [menuPos, setMenuPos] = useState<CSSProperties>({ left: 0, top: 0 });
+  const [instruction, setInstruction] = useState("");
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const request = useRef<AiRequest<void> | null>(null);
+  /** Markierung, für die das Menü per esc geschlossen wurde */
+  const dismissed = useRef<{ start: number; end: number } | null>(null);
+  const dragging = useRef(false);
+  const column = useRef<HTMLDivElement>(null);
+  const instructionInput = useRef<HTMLInputElement>(null);
 
   const area = useRef<HTMLTextAreaElement>(null);
   const history = useRef(new History());
@@ -136,6 +161,7 @@ export function Editor({ noteId, backLabel, onBack, onCreated, onChanged, onOpen
     setText(state.text);
     textRef.current = state.text;
     pendingSelection.current = { start: state.start, end: state.end };
+    if (state.end > state.start) dismissed.current = { start: state.start, end: state.end };
     saver.current!.schedule(state.text);
   }, []);
 
@@ -308,11 +334,181 @@ export function Editor({ noteId, backLabel, onBack, onCreated, onChanged, onOpen
     };
     el.addEventListener("beforeinput", onBeforeInput);
     return () => el.removeEventListener("beforeinput", onBeforeInput);
-  }, [loaded, undo, redo]);
+  }, [loaded, preview === null, undo, redo]);
 
-  const onAreaKeyDown = (_e: ReactKeyboardEvent<HTMLTextAreaElement>) => {};
+  // --- KI-Menü ----------------------------------------------------------
 
-  const words = sel.end > sel.start ? wordCount(text.slice(sel.start, sel.end)) : 0;
+  const hasSelection = sel.end > sel.start && !readOnly && !preview;
+
+  useEffect(() => {
+    if (!hasSelection) {
+      setMenuOpen(false);
+      return;
+    }
+    const gone = dismissed.current;
+    if (gone && gone.start === sel.start && gone.end === sel.end) return;
+    dismissed.current = null;
+    if (!dragging.current) setMenuOpen(true);
+  }, [hasSelection, sel.start, sel.end]);
+
+  useEffect(() => {
+    const onUp = () => {
+      if (!dragging.current) return;
+      dragging.current = false;
+      const el = area.current;
+      if (el && el.selectionEnd > el.selectionStart && !readOnly) {
+        dismissed.current = null;
+        setSel({ start: el.selectionStart, end: el.selectionEnd });
+        setMenuOpen(true);
+      }
+    };
+    window.addEventListener("mouseup", onUp);
+    return () => window.removeEventListener("mouseup", onUp);
+  }, [readOnly]);
+
+  useEffect(() => {
+    if (menuOpen) {
+      setMenuActive(0);
+      setInstruction("");
+    }
+  }, [menuOpen]);
+
+  // Menü direkt unter der Markierung
+  useLayoutEffect(() => {
+    if (!menuOpen || !column.current) return;
+    const mark = column.current.querySelector<HTMLElement>("[data-sel]");
+    if (!mark) return;
+    const rects = [...mark.getClientRects()].filter((rect) => rect.width > 0);
+    if (rects.length === 0) return;
+    const box = column.current.getBoundingClientRect();
+    const last = rects[rects.length - 1];
+    const left = Math.min(rects[0].left - box.left, Math.max(0, box.width - 472));
+    setMenuPos({ left: Math.max(0, left), top: last.bottom - box.top + 10 });
+  }, [menuOpen, sel.start, sel.end, text]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    requestAnimationFrame(() =>
+      column.current?.querySelector('[role="menu"]')?.scrollIntoView({ block: "nearest", behavior: "smooth" }),
+    );
+  }, [menuOpen]);
+
+  const closeMenu = () => {
+    dismissed.current = { ...sel };
+    setMenuOpen(false);
+  };
+
+  // --- KI-Vorschau ------------------------------------------------------
+
+  const start = useCallback((command: AiCommand, range: { start: number; end: number }, custom?: string) => {
+    request.current?.cancel();
+    const original = textRef.current.slice(range.start, range.end);
+    setMenuOpen(false);
+    setPreview({ command, instruction: custom, ...range, mode: "changes", state: { status: "loading", original, result: "" } });
+    const update = (state: Partial<PreviewState>) =>
+      setPreview((current) => current && { ...current, state: { ...current.state, ...state } });
+    request.current = runAi((id) => api.aiTransform(id, command, original, custom), {
+      chunk: (result) => update({ status: "streaming", result }),
+      done: (result) => update({ status: "done", result }),
+      error: (message) => update({ status: "error", error: message }),
+    });
+  }, []);
+
+  const runCommand = (command: AiCommand, custom?: string) => {
+    if (command === "custom" && !custom?.trim()) return;
+    start(command, { ...sel }, custom?.trim());
+  };
+
+  const discard = useCallback(() => {
+    request.current?.cancel();
+    request.current = null;
+    setPreview((current) => {
+      if (current) {
+        dismissed.current = { start: current.start, end: current.end };
+        pendingSelection.current = { start: current.start, end: current.end };
+      }
+      return null;
+    });
+  }, []);
+
+  const accept = useCallback(() => {
+    if (!preview || preview.state.status !== "done") return;
+    const { start: from, end: to, state, command } = preview;
+    const current = textRef.current;
+    history.current.checkpoint({ text: current, start: from, end: to });
+    const next = current.slice(0, from) + state.result + current.slice(to);
+    request.current = null;
+    setPreview(null);
+    applyState({ text: next, start: from + state.result.length, end: from + state.result.length });
+    toast.show({ message: `„${commandLabel(command)}“ übernommen`, undo: () => undo() });
+  }, [preview, applyState, toast, undo]);
+
+  const regenerate = useCallback(() => {
+    if (preview) start(preview.command, { start: preview.start, end: preview.end }, preview.instruction);
+  }, [preview, start]);
+
+  useEffect(() => {
+    if (!preview) return;
+    const onKey = previewKeyHandler(accept, discard);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [preview, accept, discard]);
+
+  // Fokus auf „Annehmen“, sobald das Ergebnis da ist
+  useEffect(() => {
+    if (preview?.state.status === "done") column.current?.querySelector<HTMLButtonElement>("[data-accept]")?.focus({ preventScroll: true });
+  }, [preview?.state.status]);
+
+  useEffect(() => () => request.current?.cancel(), []);
+
+  const diffParts = useMemo(
+    () => (preview?.state.status === "done" ? diffWords(preview.state.original, preview.state.result) : []),
+    [preview?.state.status, preview?.state.original, preview?.state.result],
+  );
+
+  const onAreaKeyDown = (e: ReactKeyboardEvent<HTMLTextAreaElement>) => {
+    if (!menuOpen || e.nativeEvent.isComposing || e.metaKey || e.ctrlKey || e.altKey) return;
+    const index = AI_COMMANDS.findIndex((item) => item.key === e.key);
+    if (index !== -1) {
+      e.preventDefault();
+      runCommand(AI_COMMANDS[index].command);
+    } else if ((e.key === "ArrowDown" || e.key === "ArrowUp") && !e.shiftKey) {
+      e.preventDefault();
+      const next = Math.max(0, Math.min(3, menuActive + (e.key === "ArrowDown" ? 1 : -1)));
+      setMenuActive(next);
+      if (next === 3) instructionInput.current?.focus();
+    } else if (e.key === "Tab" && !e.shiftKey) {
+      e.preventDefault();
+      setMenuActive(3);
+      instructionInput.current?.focus();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (menuActive === 3) instructionInput.current?.focus();
+      else runCommand(AI_COMMANDS[menuActive].command);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      closeMenu();
+    }
+  };
+
+  const onInstructionKeyDown = (e: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (e.nativeEvent.isComposing) return;
+    if (e.key === "Enter") {
+      e.preventDefault();
+      runCommand("custom", instruction);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      closeMenu();
+      area.current?.focus();
+    } else if (e.key === "ArrowUp" || (e.key === "Tab" && e.shiftKey)) {
+      e.preventDefault();
+      setMenuActive(2);
+      area.current?.focus();
+    }
+  };
+
+  const words = sel.end > sel.start && !preview ? wordCount(text.slice(sel.start, sel.end)) : 0;
   const meta = note ? formatRelative(note.createdAt) : "Neue Notiz";
   const statusText = readOnly ? "Im Papierkorb" : note || status !== "saved" ? STATUS_TEXT[status] : "Noch leer";
 
@@ -391,19 +587,19 @@ export function Editor({ noteId, backLabel, onBack, onCreated, onChanged, onOpen
           }
         }}>
           <div className="mx-auto max-w-[61.25rem] px-[2.5rem] pt-[2.4rem] pb-[12rem]">
-            {loaded && (
-              <div className="relative grid text-editor">
+            {loaded && !preview && (
+              <div ref={column} className="relative grid text-editor">
                 {/* Spiegel: gleiche Typografie, zeigt die Markierung, wenn der Fokus woanders ist */}
                 <div
                   aria-hidden
                   className="pointer-events-none col-start-1 row-start-1 break-words whitespace-pre-wrap text-transparent"
                 >
                   {text.slice(0, sel.start)}
-                  <span data-sel className={cx(sel.end > sel.start && !focused && "sel")}>
+                  <span data-sel className={cx(sel.end > sel.start && (!focused || menuOpen) && "sel")}>
                     {text.slice(sel.start, sel.end)}
                   </span>
                   {text.slice(sel.end)}
-                  {"​"}
+                  {"\u200b"}
                 </div>
                 <textarea
                   ref={area}
@@ -415,10 +611,57 @@ export function Editor({ noteId, backLabel, onBack, onCreated, onChanged, onOpen
                   onChange={(e) => onInput(e.target.value)}
                   onSelect={readSelection}
                   onKeyDown={onAreaKeyDown}
+                  onMouseDown={() => {
+                    dragging.current = true;
+                    setMenuOpen(false);
+                  }}
                   onFocus={() => setFocused(true)}
                   onBlur={() => setFocused(false)}
-                  className="col-start-1 row-start-1 h-full resize-none overflow-hidden bg-transparent break-words whitespace-pre-wrap text-text caret-text outline-none"
+                  className={cx(
+                    "col-start-1 row-start-1 h-full resize-none overflow-hidden bg-transparent break-words whitespace-pre-wrap text-text caret-text outline-none",
+                    menuOpen && "selection:bg-transparent",
+                  )}
                 />
+                {menuOpen && (
+                  <AiMenu
+                    ref={instructionInput}
+                    style={menuPos}
+                    active={menuActive}
+                    onActive={setMenuActive}
+                    onRun={runCommand}
+                    instruction={instruction}
+                    onInstruction={setInstruction}
+                    onInputKeyDown={onInstructionKeyDown}
+                  />
+                )}
+              </div>
+            )}
+            {loaded && preview && (
+              <div ref={column} className="text-editor">
+                <div className="break-words whitespace-pre-wrap opacity-45">{text.slice(0, preview.start).replace(/\n$/, "")}</div>
+                <div
+                  aria-live="polite"
+                  className="-mx-[1.6rem] my-[0.6rem] rounded-[16px] border border-border px-[1.6rem] py-[0.9rem] break-words whitespace-pre-wrap"
+                >
+                  <PreviewBody state={preview.state} mode={preview.mode} parts={diffParts} />
+                </div>
+                <div className="-mx-[1.2rem] mb-[1.4rem]">
+                  <PreviewPanel
+                    title={`Vorschau: ${commandLabel(preview.command)}`}
+                    subtitle={`${changeCount(diffParts) || "Keine"} ${changeCount(diffParts) === 1 ? "Änderung" : "Änderungen"} · nur die Markierung`}
+                    state={preview.state}
+                    mode={preview.mode}
+                    onMode={(mode) => setPreview((current) => current && { ...current, mode })}
+                    onRegenerate={regenerate}
+                    onDiscard={discard}
+                    onAccept={accept}
+                    onOpenSettings={onOpenSettings}
+                  />
+                </div>
+                <div className="break-words whitespace-pre-wrap opacity-45">{text.slice(preview.end).replace(/^\n/, "")}</div>
+                <div className="mt-[4rem]">
+                  <DiffLegend />
+                </div>
               </div>
             )}
           </div>
@@ -435,6 +678,7 @@ export function Editor({ noteId, backLabel, onBack, onCreated, onChanged, onOpen
           <span>
             {words} {words === 1 ? "Wort" : "Wörter"} markiert
           </span>
+          {menuOpen && <span>{kbd("esc")} schliesst</span>}
         </div>
       )}
 
