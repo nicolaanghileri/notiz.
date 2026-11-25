@@ -1,6 +1,8 @@
 mod commands;
 mod db;
 mod models;
+mod notes;
+mod timerange;
 
 use tauri::Manager;
 

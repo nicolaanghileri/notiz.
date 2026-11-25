@@ -1,12 +1,17 @@
-//! Alle Commands aus CONTRACT.md. Phase 0: nur Stubs, Agent A füllt sie.
+//! Alle Commands aus CONTRACT.md.
 
 // Parameternamen gehören zum Vertrag (Tauri leitet die JS-Namen daraus ab),
 // deshalb kein `_`-Präfix. Entfernen, sobald die Stubs implementiert sind.
 #![allow(unused_variables)]
 
+use tauri::{AppHandle, Emitter, State};
+
+use crate::db::Db;
 use crate::models::{
-    AiCommand, Filter, Note, NoteCounts, Range, SearchResult, Settings, SettingsPatch, Source,
+    AiCommand, EVENT_NOTES_CHANGED, Filter, Note, NoteCounts, NotesChanged, Range, SearchResult,
+    Settings, SettingsPatch, Source,
 };
+use crate::notes;
 
 type CommandResult<T> = Result<T, String>;
 
@@ -14,49 +19,64 @@ fn not_implemented<T>() -> CommandResult<T> {
     Err("not implemented".into())
 }
 
-#[tauri::command]
-pub fn notes_list(filter: Filter) -> CommandResult<Vec<Note>> {
-    not_implemented()
+#[tauri::command(async)]
+pub fn notes_list(db: State<Db>, filter: Filter) -> CommandResult<Vec<Note>> {
+    notes::list(&db.lock(), filter)
 }
 
-#[tauri::command]
-pub fn notes_counts() -> CommandResult<NoteCounts> {
-    not_implemented()
+#[tauri::command(async)]
+pub fn notes_counts(db: State<Db>) -> CommandResult<NoteCounts> {
+    notes::counts(&db.lock())
 }
 
-#[tauri::command]
-pub fn note_get(id: String) -> CommandResult<Note> {
-    not_implemented()
+#[tauri::command(async)]
+pub fn note_get(db: State<Db>, id: String) -> CommandResult<Note> {
+    notes::get(&db.lock(), &id)
 }
 
-#[tauri::command]
-pub fn note_create(text: String, source: Source) -> CommandResult<Note> {
-    not_implemented()
+#[tauri::command(async)]
+pub fn note_create(
+    app: AppHandle,
+    db: State<Db>,
+    text: String,
+    source: Source,
+) -> CommandResult<Note> {
+    let note = notes::create(&db.lock(), &text, source)?;
+    // Quick Capture läuft in einem eigenen Fenster, das Hauptfenster weiss nichts davon.
+    if source == Source::Quick {
+        let payload = NotesChanged {
+            id: note.id.clone(),
+        };
+        if let Err(error) = app.emit(EVENT_NOTES_CHANGED, payload) {
+            log::warn!("{EVENT_NOTES_CHANGED}: {error}");
+        }
+    }
+    Ok(note)
 }
 
-#[tauri::command]
-pub fn note_update(id: String, text: String) -> CommandResult<Note> {
-    not_implemented()
+#[tauri::command(async)]
+pub fn note_update(db: State<Db>, id: String, text: String) -> CommandResult<Note> {
+    notes::update(&db.lock(), &id, &text)
 }
 
-#[tauri::command]
-pub fn note_set_pinned(id: String, pinned: bool) -> CommandResult<Note> {
-    not_implemented()
+#[tauri::command(async)]
+pub fn note_set_pinned(db: State<Db>, id: String, pinned: bool) -> CommandResult<Note> {
+    notes::set_pinned(&db.lock(), &id, pinned)
 }
 
-#[tauri::command]
-pub fn note_delete(id: String) -> CommandResult<()> {
-    not_implemented()
+#[tauri::command(async)]
+pub fn note_delete(db: State<Db>, id: String) -> CommandResult<()> {
+    notes::delete(&db.lock(), &id)
 }
 
-#[tauri::command]
-pub fn note_restore(id: String) -> CommandResult<()> {
-    not_implemented()
+#[tauri::command(async)]
+pub fn note_restore(db: State<Db>, id: String) -> CommandResult<()> {
+    notes::restore(&db.lock(), &id)
 }
 
-#[tauri::command]
-pub fn note_delete_forever(id: String) -> CommandResult<()> {
-    not_implemented()
+#[tauri::command(async)]
+pub fn note_delete_forever(db: State<Db>, id: String) -> CommandResult<()> {
+    notes::delete_forever(&db.lock(), &id)
 }
 
 #[tauri::command]
