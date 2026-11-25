@@ -3,7 +3,238 @@
 @import "@fontsource-variable/inter/opsz.css";
 @import "@fontsource-variable/inter/opsz-italic.css";
 
-@theme {
+/*
+ * Design-Tokens aus docs/BRIEF.md, Abschnitt 10.
+ * Werte, die dort fehlen, sind mit „abgeleitet“ markiert.
+ *
+ * --ui-scale skaliert Schrift und Abstände gemeinsam (alles in rem).
+ * 1 = Werte aus Abschnitt 10. Die Screenshots sind 1440×900 @2x, dort
+ * entspräche das etwa 0.75 (siehe OPEN_QUESTIONS.md).
+ */
+:root {
+  --ui-scale: 1;
+
+  --c-window: #f7f6f3;
+  --c-panel: #ffffff;
+  --c-card: #ffffff;
+  --c-border: #e9e9e7;
+  --c-border-strong: #d3d2ce; /* abgeleitet: gestrichelte Neu-Karte, Kreise */
+  --c-text: #37352f;
+  --c-muted: #787774;
+  --c-hover: #efefed;
+  --c-accent: #2383e2;
+  --c-accent-hover: #1b74cc; /* abgeleitet */
+  --c-selected: #eef5fc; /* abgeleitet: ausgewählte Karte */
+  --c-selection: #cce2f8; /* abgeleitet: Textmarkierung */
+  --c-mark: #fbf3db;
+  --c-del-bg: #fdebec;
+  --c-del: #c4554d;
+  --c-ins-bg: #edf3ec;
+  --c-ins: #448361;
+  --c-toast: #2f2f2f;
+  --c-float: #ffffff; /* schwebende Elemente */
+  --c-toggle: #ffffff; /* abgeleitet: aktives Segment */
+  --c-focus: #37352f; /* abgeleitet: dunklere Border der Auswahl */
+
+  --shadow-float:
+    0 0 0 1px rgb(15 15 15 / 0.04), 0 3px 6px rgb(15 15 15 / 0.05),
+    0 12px 32px rgb(15 15 15 / 0.14);
+  --shadow-segment: 0 1px 3px rgb(15 15 15 / 0.12);
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --c-window: #191919;
+  --c-panel: #1f1f1f;
+  --c-card: #252525;
+  --c-border: #2f2f2f;
+  --c-border-strong: #4a4a4a;
+  --c-text: #e6e6e5;
+  --c-muted: #9b9a97;
+  --c-hover: #2a2a2a; /* abgeleitet */
+  --c-accent: #2383e2;
+  --c-accent-hover: #3a93ea;
+  --c-selected: #1c2a3a;
+  --c-selection: #244f7d; /* abgeleitet */
+  --c-mark: #564a24; /* abgeleitet */
+  --c-del-bg: #43292a; /* abgeleitet */
+  --c-del: #e58a83;
+  --c-ins-bg: #243529; /* abgeleitet */
+  --c-ins: #7fbf99;
+  --c-toast: #3a3a3a;
+  --c-float: #252525;
+  --c-toggle: #3a3a3a;
+  --c-focus: #9b9a97;
+
+  --shadow-float:
+    0 0 0 1px rgb(255 255 255 / 0.05), 0 4px 10px rgb(0 0 0 / 0.3),
+    0 16px 40px rgb(0 0 0 / 0.5);
+  --shadow-segment: 0 1px 3px rgb(0 0 0 / 0.4);
+  color-scheme: dark;
+}
+
+@theme inline {
   --font-sans:
     "Inter Variable", "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+
+  --color-window: var(--c-window);
+  --color-panel: var(--c-panel);
+  --color-card: var(--c-card);
+  --color-border: var(--c-border);
+  --color-border-strong: var(--c-border-strong);
+  --color-text: var(--c-text);
+  --color-muted: var(--c-muted);
+  --color-hover: var(--c-hover);
+  --color-accent: var(--c-accent);
+  --color-accent-hover: var(--c-accent-hover);
+  --color-selected: var(--c-selected);
+  --color-selection: var(--c-selection);
+  --color-mark: var(--c-mark);
+  --color-del-bg: var(--c-del-bg);
+  --color-del: var(--c-del);
+  --color-ins-bg: var(--c-ins-bg);
+  --color-ins: var(--c-ins);
+  --color-toast: var(--c-toast);
+  --color-float: var(--c-float);
+  --color-toggle: var(--c-toggle);
+  --color-focus: var(--c-focus);
+
+  /* Schriftgrössen, 1rem = 16px */
+  --text-title: 2.5rem; /* 40 Seitentitel */
+  --text-title--line-height: 1.2;
+  --text-capture: 1.75rem; /* 28 Quick Capture */
+  --text-capture--line-height: 1.45;
+  --text-editor: 1.25rem; /* 20 Editor */
+  --text-editor--line-height: 1.7;
+  --text-card-title: 1.25rem; /* 20 Kartentitel */
+  --text-card-title--line-height: 1.4;
+  --text-body: 1.125rem; /* 18 Fliesstext, Navigation */
+  --text-body--line-height: 1.6;
+  --text-label: 1.0625rem; /* 17 Buttons, Toggles */
+  --text-label--line-height: 1.4;
+  --text-meta: 0.9375rem; /* 15 Meta */
+  --text-meta--line-height: 1.4;
+  --text-badge: 0.75rem; /* 12 Shortcut-Badges */
+  --text-badge--line-height: 1.4;
+
+  --radius-panel: 16px;
+  --radius-card: 14px;
+  --radius-control: 12px;
+  --radius-small: 10px;
+
+  --shadow-float: var(--shadow-float);
+  --shadow-segment: var(--shadow-segment);
+}
+
+@layer base {
+  html {
+    font-size: calc(16px * var(--ui-scale));
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    background: var(--c-window);
+    color: var(--c-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: default;
+  }
+  /* Quick Capture: nur die Karte ist sichtbar, der Rest durchsichtig. */
+  html[data-route="capture"] body {
+    background: transparent;
+  }
+  input,
+  textarea,
+  .selectable {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+  ::selection {
+    background: var(--c-selection);
+  }
+  button {
+    cursor: default;
+  }
+  ::placeholder {
+    color: var(--c-muted);
+    opacity: 1;
+  }
+  :focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 2px;
+  }
+  input:focus-visible,
+  textarea:focus-visible {
+    outline: none;
+  }
+  dialog::backdrop {
+    background: rgb(15 15 15 / 0.35);
+  }
+}
+
+@layer components {
+  .hl {
+    background: var(--c-mark);
+    color: inherit;
+    border-radius: 6px;
+    padding: 0.1em 0.2em;
+    margin: 0 -0.2em;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+  .diff-del,
+  .diff-ins {
+    border-radius: 6px;
+    padding: 0.08em 0.15em;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+  .diff-del {
+    background: var(--c-del-bg);
+    color: var(--c-del);
+    text-decoration: line-through;
+  }
+  .diff-ins {
+    background: var(--c-ins-bg);
+    color: var(--c-ins);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+  .sel {
+    background: var(--c-selection);
+    color: inherit;
+    border-radius: 6px;
+    padding: 0.18em 0;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+  .thinking {
+    animation: thinking 1.4s ease-in-out infinite;
+  }
+  @keyframes thinking {
+    50% {
+      opacity: 0.4;
+    }
+  }
+  .appear {
+    animation: appear 0.12s ease-out;
+  }
+  @keyframes appear {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .thinking,
+    .appear {
+      animation: none;
+    }
+  }
 }
