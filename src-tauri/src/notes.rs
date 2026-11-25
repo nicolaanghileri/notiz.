@@ -27,25 +27,30 @@ fn source_to_sql(source: Source) -> &'static str {
 
 /// Erwartet die Spalten aus `COLUMNS` ab Index 0.
 pub fn from_row(row: &Row) -> rusqlite::Result<Note> {
-    let source: String = row.get(5)?;
+    from_row_at(row, 0)
+}
+
+/// Erwartet die Spalten aus `COLUMNS` ab Index `at`.
+pub fn from_row_at(row: &Row, at: usize) -> rusqlite::Result<Note> {
+    let source: String = row.get(at + 5)?;
     Ok(Note {
-        id: row.get(0)?,
-        text: row.get(1)?,
-        created_at: row.get(2)?,
-        updated_at: row.get(3)?,
-        pinned: row.get(4)?,
+        id: row.get(at)?,
+        text: row.get(at + 1)?,
+        created_at: row.get(at + 2)?,
+        updated_at: row.get(at + 3)?,
+        pinned: row.get(at + 4)?,
         source: match source.as_str() {
             "app" => Source::App,
             "quick" => Source::Quick,
             other => {
                 return Err(rusqlite::Error::FromSqlConversionFailure(
-                    5,
+                    at + 5,
                     Type::Text,
                     format!("unbekannte Quelle: {other}").into(),
                 ));
             }
         },
-        deleted_at: row.get(6)?,
+        deleted_at: row.get(at + 6)?,
     })
 }
 

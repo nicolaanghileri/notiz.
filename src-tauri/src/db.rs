@@ -22,6 +22,24 @@ const MIGRATIONS: &[&str] = &[
         deleted_at TEXT
     );
     CREATE INDEX notes_created_at ON notes (created_at DESC);",
+    // 2: Volltextindex, synchron per Trigger
+    "CREATE VIRTUAL TABLE notes_fts USING fts5(
+        text,
+        content = 'notes',
+        content_rowid = 'seq',
+        tokenize = 'unicode61 remove_diacritics 2'
+    );
+    CREATE TRIGGER notes_fts_insert AFTER INSERT ON notes BEGIN
+        INSERT INTO notes_fts (rowid, text) VALUES (new.seq, new.text);
+    END;
+    CREATE TRIGGER notes_fts_delete AFTER DELETE ON notes BEGIN
+        INSERT INTO notes_fts (notes_fts, rowid, text) VALUES ('delete', old.seq, old.text);
+    END;
+    CREATE TRIGGER notes_fts_update AFTER UPDATE OF text ON notes BEGIN
+        INSERT INTO notes_fts (notes_fts, rowid, text) VALUES ('delete', old.seq, old.text);
+        INSERT INTO notes_fts (rowid, text) VALUES (new.seq, new.text);
+    END;
+    INSERT INTO notes_fts (notes_fts) VALUES ('rebuild');",
 ];
 
 pub struct Db {

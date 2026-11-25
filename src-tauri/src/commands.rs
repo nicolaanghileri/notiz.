@@ -79,9 +79,18 @@ pub fn note_delete_forever(db: State<Db>, id: String) -> CommandResult<()> {
     notes::delete_forever(&db.lock(), &id)
 }
 
-#[tauri::command]
-pub fn search(request_id: String, query: String, range: Range) -> CommandResult<SearchResult> {
-    not_implemented()
+#[tauri::command(async)]
+pub fn search(
+    db: State<Db>,
+    request_id: String,
+    query: String,
+    range: Range,
+) -> CommandResult<SearchResult> {
+    let hits = crate::search::search(&db.lock(), &query, range)?;
+    Ok(SearchResult {
+        hits,
+        answer_request_id: None,
+    })
 }
 
 #[tauri::command]
