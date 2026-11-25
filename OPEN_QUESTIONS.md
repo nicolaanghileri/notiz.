@@ -26,7 +26,7 @@ Entscheidung (Nicola):
 ## [Setup] Kurzantwort: Reihenfolge von Events und Rückgabe
 Frage / Problem: Das Backend erzeugt `answerRequestId`. Das Frontend kennt sie erst nach der Antwort von `search`, `ai://`-Events könnten vorher eintreffen.
 Meine Annahme (womit ich vorerst weitermache): Das Frontend meldet die Listener vor `search` an und puffert unbekannte IDs kurz. Der Mock startet das Streaming 500 ms nach der Suche.
-Entscheidung (Nicola):
+Entscheidung (Nicola): Das Frontend erzeugt die ID und gibt sie bei `search` als `requestId` mit, wie bei den anderen KI-Befehlen. Kein Puffern nötig. CONTRACT.md ist angepasst; `answerRequestId` ist jetzt die übergebene ID oder `null`.
 
 ## [Setup] Quellen-Badges im Text
 Frage / Problem: Wie die Badges im Antworttext codiert sind, steht nicht im Vertrag.
@@ -61,7 +61,7 @@ Entscheidung (Nicola):
 ## [Setup] Reihenfolge der Tasten 1/2/3
 Frage / Problem: Screen 2: Verbessern 1, Korrigieren 2, Zusammenfassen 3. Screen 6: Zusammenfassen 1, Korrigieren 2, Verbessern 3.
 Meine Annahme (womit ich vorerst weitermache): Genau wie in den Screenshots, also unterschiedlich.
-Entscheidung (Nicola):
+Entscheidung (Nicola): Überall gleich: Verbessern 1, Korrigieren 2, Zusammenfassen 3.
 
 ## [Setup] Abgeleiteter Titel
 Frage / Problem: „Erste Zeile bzw. erster Satz“ passt nicht überall: In 1B steht „Zahnarzt verschoben auf Do 14:30, Dr. Keller …“ in einer Zeile, in 1A endet der Titel nach „14:30“. Texte weichen zwischen den Screens auch leicht ab.
@@ -71,7 +71,7 @@ Entscheidung (Nicola):
 ## [Setup] ss oder ß in UI-Texten
 Frage / Problem: Die Screenshots zeigen „schließt“/„schließen“, AGENTS.md erlaubt „ss“, aber einheitlich.
 Meine Annahme (womit ich vorerst weitermache): UI wie in den Screenshots mit ß. Notiztexte bleiben wie vorgegeben („heisst“).
-Entscheidung (Nicola):
+Entscheidung (Nicola): Überall „ss“.
 
 ## [Setup] Wem gehören die Dateien im Root?
 Frage / Problem: `package.json`, `vite.config.ts`, `index.html`, `.env.development` liegen ausserhalb von `src/` und `src-tauri/`. Agent B braucht z. B. das npm-Paket `diff`.

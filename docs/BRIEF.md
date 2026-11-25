@@ -14,6 +14,10 @@ Dazu gehören 7 Design-Screenshots in `docs/design/`. Sie sind die Referenz für
 | 5 | `docs/design/5-quick-capture.png` | Quick Capture über einem anderen Programm |
 | 6 | `docs/design/6-dark-mode-mehrfachauswahl.png` | Dark Mode, mehrere Notizen ausgewählt |
 
+**Bewusste Abweichungen von den Screenshots** (hier gilt der Text, nicht das Bild):
+- Überall „ss“ statt „ß“ („schliesst“, „schliessen“)
+- KI-Befehle überall in gleicher Reihenfolge: Verbessern 1, Korrigieren 2, Zusammenfassen 3 (Screen 6 zeigt es umgekehrt)
+
 ---
 
 ## 1. Grundprinzipien
@@ -22,13 +26,13 @@ Dazu gehören 7 Design-Screenshots in `docs/design/`. Sie sind die Referenz für
 2. **Titel wird abgeleitet:** die erste Zeile bzw. der erste Satz einer Notiz wird in Karten/Listen fett als Titel angezeigt. Der Text selbst bleibt unverändert.
 3. **KI nur auf Befehl:** Änderungen am Text erscheinen immer zuerst als Vorschau (Diff) und werden erst nach „Annehmen“ übernommen. Alles ist mit ⌘Z rückgängig zu machen.
 4. **Alles per Tastatur bedienbar:** Hover blendet Zusatzaktionen ein, aber jede Funktion hat einen Shortcut.
-5. **Ruhig:** Look wie Notion: viel Weißraum, fast keine Farbe. Blau nur für Primäraktion, Auswahl und den Punkt im Logo.
+5. **Ruhig:** Look wie Notion: viel Weissraum, fast keine Farbe. Blau nur für Primäraktion, Auswahl und den Punkt im Logo.
 
 ---
 
 ## 2. App-Layout (Basis = Screen 1A)
 
-Fenster mit warmem, hellgrauem Rahmen. Darin links die Sidebar direkt auf dem Hintergrund, rechts ein weißes Content-Panel mit großem Radius und feiner Border.
+Fenster mit warmem, hellgrauem Rahmen. Darin links die Sidebar direkt auf dem Hintergrund, rechts ein weisses Content-Panel mit grossem Radius und feiner Border.
 
 ### Sidebar (ca. 280–300 px)
 - Oben: Logo **„notiz.“** (Punkt in Akzentblau), rechts ein Stift-Icon = neue Notiz (⌘N)
@@ -42,10 +46,10 @@ Fenster mit warmem, hellgrauem Rahmen. Darin links die Sidebar direkt auf dem Hi
 - Unten: Papierkorb, Einstellungen
 
 ### Startseite „Alle Notizen“ (Screen 1A)
-- Großer, fetter Titel „Alle Notizen“
+- Grosser, fetter Titel „Alle Notizen“
 - Oben rechts: Sortierung „Neueste zuerst“ + Segment-Toggle **Karten | Liste**
 - Gruppen mit kleiner grauer Überschrift: „Diese Woche“, „Früher“ (später ggf. nach Monat)
-- Grid mit 4 Spalten (responsive weniger), gleich große Karten
+- Grid mit 4 Spalten (responsive weniger), gleich grosse Karten
 - **Erste Karte ist immer die Neu-Karte:** gestrichelte Border, runder „+“-Button, Text „Einfach losschreiben“, darunter klein „⌘N · ohne Titel, ohne Ordner“
 - **Notiz-Karte:**
   - Abgeleiteter Titel fett (max. 2 Zeilen)
@@ -57,7 +61,7 @@ Fenster mit warmem, hellgrauem Rahmen. Darin links die Sidebar direkt auf dem Hi
 Optional bzw. als Inspiration für die Ansicht „Liste“:
 - Schmale Icon-Leiste links statt Sidebar (Menü, Angeheftet, Schnell erfasst, unten Papierkorb, Einstellungen)
 - Mittige Spalte (~1100 px):
-  - Großes Suchfeld oben: „Frag deine Notizen … z. B. ‚wo war das mit dem Risotto?‘“ + ⌘K
+  - Grosses Suchfeld oben: „Frag deine Notizen … z. B. ‚wo war das mit dem Risotto?‘“ + ⌘K
   - Darunter direkt ein Inline-Eingabefeld (gestrichelt): links grau „jetzt“, Platzhalter „Einfach losschreiben …“, Cursor steht beim Start schon drin
   - Notizen chronologisch, gruppiert nach Tag („Heute · Mittwoch, 25. November“, „Gestern“, „Montag, 23. November“). Jede Notiz als Karte mit Uhrzeit links (grau) und vollem Text rechts
 - Rechts eine Zeitleiste zum Springen: Jahr oben (2026), Monate darunter (Nov, Okt, Sep …). Die Länge des Strichs neben dem Monat zeigt, wie viele Notizen er hat. Der aktuelle Monat ist fett mit dunklem Strich.
@@ -71,8 +75,8 @@ Optional bzw. als Inspiration für die Ansicht „Liste“:
 - Kopfzeile im Content-Panel:
   - Links: Pill-Button „← Alle Notizen“, daneben grau „Heute, 09:14 · Gespeichert“ (Speicherstatus live)
   - Rechts: Icons Anheften, Seitenleiste ein/aus (vorerst Platzhalter für späteres Kontext-Panel), „…“-Menü (Löschen, Duplizieren, Kopieren)
-- Text zentriert, max. ca. 980 px breit, großzügiger Zeilenabstand (~1.7), keine Formatierung
-- Statuszeile unten rechts (grau, klein), nur bei Markierung: „14 Wörter markiert · esc schließt“
+- Text zentriert, max. ca. 980 px breit, grosszügiger Zeilenabstand (~1.7), keine Formatierung
+- Statuszeile unten rechts (grau, klein), nur bei Markierung: „14 Wörter markiert · esc schliesst“
 
 ---
 
@@ -87,8 +91,8 @@ Text markieren → schwebendes Menü direkt unter der Markierung:
 | Zusammenfassen | Textzeilen | 3 |
 
 - Trennlinie, darunter ein Eingabefeld „Eigene Anweisung … z. B. ‚als To-do-Liste‘“ mit ↵
-- Fußzeile grau: „Ändert nichts, bevor du die Vorschau annimmst“
-- Pfeiltasten wählen, ↵ führt aus, Zahlentasten 1–3 direkt, esc schließt
+- Fusszeile grau: „Ändert nichts, bevor du die Vorschau annimmst“
+- Pfeiltasten wählen, ↵ führt aus, Zahlentasten 1–3 direkt, esc schliesst
 - Markierung bleibt blau hinterlegt
 
 **Bedeutung der Befehle:**
@@ -121,15 +125,15 @@ Text markieren → schwebendes Menü direkt unter der Markierung:
 Öffnen per ⌘K oder Klick ins Suchfeld. Belegt das Content-Panel, zweispaltig.
 
 **Linke Spalte:**
-- Großes Suchfeld mit der Frage, rechts „esc“
+- Grosses Suchfeld mit der Frage, rechts „esc“
 - Filter-Chips: **Alle Zeiträume** (aktiv) | Letzter Monat | Dieses Jahr
 - Rechts daneben grau: „Wörter + Bedeutung · 5 Treffer“
 - **Kurzantwort-Box** (hellgrau hinterlegt):
   - Label „Kurzantwort aus 3 Notizen“, rechts „Ausblenden“
-  - KI-Antwort in Fließtext mit nummerierten Quellen-Badges (1, 2, 3) direkt im Text
+  - KI-Antwort in Fliesstext mit nummerierten Quellen-Badges (1, 2, 3) direkt im Text
 - **Quellen:** nummerierte Karten (Nummer im grauen Kreis links), Datum + Uhrzeit grau, Notiztext mit gelb markierten Treffer-Stellen. Die ausgewählte Karte hat eine dunklere Border.
 - **Weniger passend:** schlichte Liste (eine Zeile, Datum rechts)
-- Fußleiste: ↑ ↓ auswählen · ↵ öffnen
+- Fussleiste: ↑ ↓ auswählen · ↵ öffnen
 
 **Rechte Spalte (Vorschau):**
 - Voller Text der ausgewählten Notiz, Treffer gelb markiert
@@ -146,10 +150,10 @@ Text markieren → schwebendes Menü direkt unter der Markierung:
 
 - Globaler Shortcut öffnet ein schwebendes Fenster über jedem Programm, **auch wenn das Hauptfenster geschlossen ist** (App läuft im Hintergrund bzw. im Tray/Menüleiste)
 - Default macOS: **⌥ Leertaste**. Unter Windows ist Alt+Leertaste vom System belegt → Default **Ctrl+Shift+Leertaste**. In den Einstellungen änderbar.
-- Weiße Karte mit großem Radius und starkem Schatten, oben mittig auf dem Bildschirm
-- Stift-Icon links, großer Text (ca. 28 px), mehrzeilig, Cursor sofort drin
-- Fußzeile: links grau „Neue Notiz in notiz.“, rechts Hinweise: ↵ sichern · ⇧↵ neue Zeile · esc schließen
-- Speichern → Fenster schließt, Notiz landet in „Schnell erfasst“ und „Alle Notizen“, Quelle = quick
+- Weisse Karte mit grossem Radius und starkem Schatten, oben mittig auf dem Bildschirm
+- Stift-Icon links, grosser Text (ca. 28 px), mehrzeilig, Cursor sofort drin
+- Fusszeile: links grau „Neue Notiz in notiz.“, rechts Hinweise: ↵ sichern · ⇧↵ neue Zeile · esc schliessen
+- Speichern → Fenster schliesst, Notiz landet in „Schnell erfasst“ und „Alle Notizen“, Quelle = quick
 
 ---
 
@@ -159,7 +163,7 @@ Text markieren → schwebendes Menü direkt unter der Markierung:
 - Jede Karte hat oben rechts einen runden Auswahl-Kreis (bei Hover sichtbar, bei Auswahl blau mit Häkchen)
 - Ausgewählte Karte: blaue Border + leicht blau getönter Hintergrund
 - Schwebende Aktionsleiste unten mittig:
-  „3 ausgewählt“ | Zusammenfassen 1 | Korrigieren 2 | Verbessern 3 | Feld „Eigene Anweisung …“ ↵ | ✕
+  „3 ausgewählt“ | Verbessern 1 | Korrigieren 2 | Zusammenfassen 3 | Feld „Eigene Anweisung …“ ↵ | ✕
 - **Verhalten (Vorschlag, im Design nicht gezeigt):**
   - **Zusammenfassen:** erstellt eine **neue** Notiz aus den ausgewählten (Originale bleiben), vorher Vorschau
   - **Korrigieren / Verbessern:** Diff-Vorschau pro Notiz, nacheinander durchklicken, „Alle annehmen“ möglich
@@ -175,7 +179,7 @@ Text markieren → schwebendes Menü direkt unter der Markierung:
 | Quick Capture (global) | ⌥ Space | Ctrl+Shift+Space |
 | KI-Befehl im Menü | 1 / 2 / 3 | 1 / 2 / 3 |
 | Vorschau annehmen | ↵ | Enter |
-| Vorschau verwerfen / schließen | esc | Esc |
+| Vorschau verwerfen / schliessen | esc | Esc |
 | Rückgängig | ⌘Z | Ctrl+Z |
 | In Suchergebnissen navigieren | ↑ ↓ ↵ | ↑ ↓ Enter |
 | Mehrfachauswahl | ⌘-Klick / ⇧-Klick | Ctrl-Klick / Shift-Klick |
@@ -189,7 +193,7 @@ Werte sind aus den Screenshots abgeleitet, Feinabstimmung gerne nach Gefühl.
 **Schrift:** Inter (Fallback: SF Pro / Segoe UI / system-ui)
 - Seitentitel: 40 px, semibold
 - Kartentitel: 18–20 px, semibold
-- Fließtext/Editor: 18–20 px, regular, Zeilenhöhe ~1.7
+- Fliesstext/Editor: 18–20 px, regular, Zeilenhöhe ~1.7
 - Meta/Labels: 14–15 px, grau
 
 **Light Mode:**
@@ -205,7 +209,7 @@ Werte sind aus den Screenshots abgeleitet, Feinabstimmung gerne nach Gefühl.
 | Markierung Suchtreffer | `#FBF3DB` |
 | Diff entfernt | Hintergrund `#FDEBEC`, Text `#C4554D` |
 | Diff eingefügt | Hintergrund `#EDF3EC`, Text `#448361` |
-| Toast | `#2F2F2F`, Text weiß |
+| Toast | `#2F2F2F`, Text weiss |
 
 **Dark Mode:**
 | Token | Wert |
@@ -339,10 +343,10 @@ note_delete(id): void                              // → Papierkorb
 note_restore(id): void
 note_delete_forever(id): void
 
-search(query: string, range: Range): {
+search(requestId: string, query: string, range: Range): {
   hits: { note: Note; highlights: [number, number][]; score: number;
           tier: 'match' | 'weak' }[];              // 'weak' = "Weniger passend"
-  answerRequestId: string | null;                  // null bei reinem Stichwort
+  answerRequestId: string | null;                  // = requestId, null bei reinem Stichwort
 }
 
 ai_transform(requestId: string, command: AiCommand, text: string,
@@ -365,4 +369,4 @@ api_key_set(key: string): void
 'notes://changed' { id }                         // z. B. nach Quick Capture
 ```
 
-Die Kurzantwort der Suche läuft über dieselben `ai://`-Events mit der `answerRequestId`. Das Frontend rendert Quellen-Badges [1] [2] [3] in Reihenfolge der `hits`.
+Die Kurzantwort der Suche läuft über dieselben `ai://`-Events mit der `requestId`, die das Frontend bei `search` mitgibt. Das Frontend kennt die ID also, bevor das erste Event eintrifft. Das Frontend rendert Quellen-Badges [1] [2] [3] in Reihenfolge der `hits`.

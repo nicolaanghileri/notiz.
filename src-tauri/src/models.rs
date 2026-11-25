@@ -79,7 +79,7 @@ pub struct SearchHit {
 #[serde(rename_all = "camelCase")]
 pub struct SearchResult {
     pub hits: Vec<SearchHit>,
-    /// Nur bei einer Frage gesetzt, sonst `None`
+    /// Die übergebene `request_id`, wenn eine Kurzantwort folgt (nur bei einer Frage), sonst `None`
     pub answer_request_id: Option<String>,
 }
 

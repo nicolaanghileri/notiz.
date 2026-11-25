@@ -373,7 +373,7 @@ export function createMockApi(): NotizApi {
       notes.delete(id);
     },
 
-    async search(query, range) {
+    async search(requestId, query, range) {
       await wait(LATENCY_MS * 2);
       const trimmed = query.trim();
       const candidates = list("all").filter((note) =>
@@ -387,13 +387,12 @@ export function createMockApi(): NotizApi {
         return { hits, answerRequestId: null };
       }
 
-      const answerRequestId = crypto.randomUUID();
       void stream(
-        answerRequestId,
+        requestId,
         shortAnswer(trimmed, sources),
         sources.map((hit) => hit.note.id),
       );
-      return { hits, answerRequestId };
+      return { hits, answerRequestId: requestId };
     },
 
     async aiTransform(requestId, command, text, instruction = "") {

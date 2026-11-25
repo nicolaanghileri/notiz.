@@ -36,7 +36,11 @@ export interface NotizApi {
   noteDelete(id: string): Promise<void>;
   noteRestore(id: string): Promise<void>;
   noteDeleteForever(id: string): Promise<void>;
-  search(query: string, range: Range): Promise<SearchResult>;
+  search(
+    requestId: string,
+    query: string,
+    range: Range,
+  ): Promise<SearchResult>;
   aiTransform(
     requestId: string,
     command: AiCommand,
@@ -64,7 +68,8 @@ const tauriApi: NotizApi = {
   noteDelete: (id) => invoke("note_delete", { id }),
   noteRestore: (id) => invoke("note_restore", { id }),
   noteDeleteForever: (id) => invoke("note_delete_forever", { id }),
-  search: (query, range) => invoke("search", { query, range }),
+  search: (requestId, query, range) =>
+    invoke("search", { requestId, query, range }),
   aiTransform: (requestId, command, text, instruction) =>
     invoke("ai_transform", { requestId, command, text, instruction }),
   aiSummarizeNotes: (requestId, ids) =>

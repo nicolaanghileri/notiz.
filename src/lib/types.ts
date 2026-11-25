@@ -44,7 +44,7 @@ export type NoteCounts = Record<Filter, number>;
 /** Rückgabe von `search` */
 export interface SearchResult {
   hits: SearchHit[];
-  /** Nur bei einer Frage gesetzt, sonst null */
+  /** Die übergebene requestId, wenn eine Kurzantwort folgt (nur bei einer Frage), sonst null */
   answerRequestId: string | null;
 }
 

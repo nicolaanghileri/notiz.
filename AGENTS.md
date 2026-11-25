@@ -20,5 +20,5 @@ Projekt: **notiz.**, eine Desktop-Notizen-App (macOS + Windows) mit Tauri 2 (Rus
 - Die KI der App handelt nur auf Befehl. Keine automatischen Textänderungen, keine Push-Nachrichten, keine ungefragten Vorschläge.
 - Notiztext geht nur an die Claude-API, wenn der Nutzer aktiv einen KI-Befehl ausführt oder eine Suchfrage stellt.
 - API-Keys nie im Klartext speichern oder committen.
-- UI-Texte auf Deutsch (Schweiz: „ss“ statt „ß“ ist okay, aber einheitlich).
+- UI-Texte auf Deutsch (Schweiz: immer „ss“ statt „ß“, auch wo die Screenshots „ß“ zeigen).
 - Kleine, häufige Commits mit klaren Nachrichten.

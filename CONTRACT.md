@@ -53,7 +53,7 @@ interface Settings {
 | `note_delete` | `id` | – | verschiebt in den Papierkorb |
 | `note_restore` | `id` | – | aus Papierkorb zurück |
 | `note_delete_forever` | `id` | – | endgültig |
-| `search` | `query, range: Range` | `{ hits: SearchHit[]; answerRequestId: string \| null }` | `answerRequestId` nur bei einer Frage, sonst `null` |
+| `search` | `requestId, query, range: Range` | `{ hits: SearchHit[]; answerRequestId: string \| null }` | `answerRequestId` = die übergebene `requestId`, wenn eine Kurzantwort folgt (nur bei einer Frage), sonst `null` |
 | `ai_transform` | `requestId, command: AiCommand, text, instruction?` | – | Ergebnis kommt per Events |
 | `ai_summarize_notes` | `requestId, ids: string[]` | – | Ergebnis per Events, Frontend legt danach neue Notiz an |
 | `ai_cancel` | `requestId` | – | |
@@ -72,7 +72,7 @@ interface Settings {
 | `ai://error` | `{ requestId, message: string }` | Fehler (kein API-Key, Netz, Limit …) |
 | `notes://changed` | `{ id }` | Notiz wurde ausserhalb der aktuellen Ansicht geändert/erstellt (z. B. Quick Capture) |
 
-Die Kurzantwort der Suche läuft über dieselben `ai://`-Events mit der `answerRequestId`. Das Frontend nummeriert die Quellen-Badges [1] [2] [3] in der Reihenfolge der `hits`.
+Die Kurzantwort der Suche läuft über dieselben `ai://`-Events mit der `requestId`, die das Frontend bei `search` mitgibt. Das Frontend kennt die ID also, bevor das erste Event eintrifft. Das Frontend nummeriert die Quellen-Badges [1] [2] [3] in der Reihenfolge der `hits`.
 
 ## Fehler
 

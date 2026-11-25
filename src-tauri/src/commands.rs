@@ -60,7 +60,7 @@ pub fn note_delete_forever(id: String) -> CommandResult<()> {
 }
 
 #[tauri::command]
-pub fn search(query: String, range: Range) -> CommandResult<SearchResult> {
+pub fn search(request_id: String, query: String, range: Range) -> CommandResult<SearchResult> {
     not_implemented()
 }
 
