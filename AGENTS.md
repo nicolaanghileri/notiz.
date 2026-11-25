@@ -12,7 +12,9 @@ Projekt: **notiz.**, eine Desktop-Notizen-App (macOS + Windows) mit Tauri 2 (Rus
 |---|---|---|
 | Setup (Phase 0) | ganzes Repo | `prompts/00-setup.md` |
 | Agent A – Backend | nur `src-tauri/` | `prompts/agent-a-backend.md` |
-| Agent B – Frontend | nur `src/` | `prompts/agent-b-frontend.md` |
+| Agent B – Frontend | nur `src/` + Frontend-Konfiguration im Root* | `prompts/agent-b-frontend.md` |
+
+\* `package.json`, `package-lock.json`, `vite.config.ts`, `tsconfig*.json`, `index.html`, `.env.development`. Diese Dateien ändert nur Agent B. `OPEN_QUESTIONS.md` dürfen beide ergänzen.
 
 ## Regeln
 - Keine Dateien im Bereich des anderen Agents ändern.

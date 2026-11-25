@@ -16,12 +16,12 @@ Entscheidung (Nicola):
 ## [Setup] Einheit der `highlights`
 Frage / Problem: „Zeichen-Bereiche“ ist mehrdeutig. JavaScript zählt UTF-16-Einheiten, Rust Bytes oder Unicode-Zeichen. Bei Emojis verschieben sich die Markierungen.
 Meine Annahme (womit ich vorerst weitermache): UTF-16-Einheiten, damit `text.slice(start, end)` im Frontend direkt stimmt. Agent A rechnet um.
-Entscheidung (Nicola):
+Entscheidung (Nicola): bestätigt
 
 ## [Setup] Parametername von `settings_set`
 Frage / Problem: Der Vertrag nennt nur den Typ `Partial<Settings>`, keinen Namen. Tauri braucht auf beiden Seiten denselben.
 Meine Annahme (womit ich vorerst weitermache): `partial` (wie im Brief, Abschnitt 15): `invoke('settings_set', { partial })`.
-Entscheidung (Nicola):
+Entscheidung (Nicola): bestätigt
 
 ## [Setup] Kurzantwort: Reihenfolge von Events und Rückgabe
 Frage / Problem: Das Backend erzeugt `answerRequestId`. Das Frontend kennt sie erst nach der Antwort von `search`, `ai://`-Events könnten vorher eintreffen.
@@ -31,32 +31,32 @@ Entscheidung (Nicola): Das Frontend erzeugt die ID und gibt sie bei `search` als
 ## [Setup] Quellen-Badges im Text
 Frage / Problem: Wie die Badges im Antworttext codiert sind, steht nicht im Vertrag.
 Meine Annahme (womit ich vorerst weitermache): Als `[1]`, `[2]`, `[3]` im Text, 1-basiert nach Reihenfolge der `hits`. `sources` enthält die zugehörigen Note-IDs.
-Entscheidung (Nicola):
+Entscheidung (Nicola): bestätigt
 
 ## [Setup] `ai_cancel`
 Frage / Problem: Kommt nach dem Abbrechen noch ein Event?
 Meine Annahme (womit ich vorerst weitermache): Nein, weder `ai://done` noch `ai://error`.
-Entscheidung (Nicola):
+Entscheidung (Nicola): bestätigt
 
 ## [Setup] Sortierung und Zeiträume
 Frage / Problem: „Neueste zuerst“ nach `createdAt` oder `updatedAt`? Wo beginnen „Heute“, „Letzte 7 Tage“, „Letzter Monat“?
 Meine Annahme (womit ich vorerst weitermache): `createdAt`, lokale Zeitzone. Heute = ab Mitternacht, 7 Tage = heute + 6 Tage davor, letzter Monat = letzte 30 Tage, dieses Jahr = Kalenderjahr.
-Entscheidung (Nicola):
+Entscheidung (Nicola): bestätigt
 
 ## [Setup] Wann kommt `notes://changed`?
 Frage / Problem: Nur bei Quick Capture oder auch bei Löschen, Wiederherstellen usw.?
 Meine Annahme (womit ich vorerst weitermache): Nur wenn die Notiz nicht aus der aktuellen Ansicht stammt. Der Mock sendet es bei `note_create` mit `source = 'quick'`.
-Entscheidung (Nicola):
+Entscheidung (Nicola): bestätigt
 
 ## [Setup] Quick-Capture-Fenster schliessen
 Frage / Problem: Esc und ↵ müssen das Fenster schliessen. Dafür gibt es keinen Command.
 Meine Annahme (womit ich vorerst weitermache): Das Frontend ruft `getCurrentWindow().hide()` auf, Agent A erlaubt das in `src-tauri/capabilities/`.
-Entscheidung (Nicola):
+Entscheidung (Nicola): bestätigt
 
 ## [Setup] Mehrfachauswahl: Korrigieren, Verbessern, eigene Anweisung
 Frage / Problem: Für mehrere Notizen gibt es nur `ai_summarize_notes`, und das ohne Anweisung.
 Meine Annahme (womit ich vorerst weitermache): Das Frontend ruft `ai_transform` pro Notiz auf, mit je eigener `requestId`.
-Entscheidung (Nicola):
+Entscheidung (Nicola): bestätigt
 
 ## [Setup] Reihenfolge der Tasten 1/2/3
 Frage / Problem: Screen 2: Verbessern 1, Korrigieren 2, Zusammenfassen 3. Screen 6: Zusammenfassen 1, Korrigieren 2, Verbessern 3.
@@ -66,7 +66,7 @@ Entscheidung (Nicola): Überall gleich: Verbessern 1, Korrigieren 2, Zusammenfas
 ## [Setup] Abgeleiteter Titel
 Frage / Problem: „Erste Zeile bzw. erster Satz“ passt nicht überall: In 1B steht „Zahnarzt verschoben auf Do 14:30, Dr. Keller …“ in einer Zeile, in 1A endet der Titel nach „14:30“. Texte weichen zwischen den Screens auch leicht ab.
 Meine Annahme (womit ich vorerst weitermache): Erster Satz der ersten Zeile. Die Mock-Notizen haben dort einen Zeilenumbruch, damit die Titel wie in 1A aussehen.
-Entscheidung (Nicola):
+Entscheidung (Nicola): bestätigt
 
 ## [Setup] ss oder ß in UI-Texten
 Frage / Problem: Die Screenshots zeigen „schließt“/„schließen“, AGENTS.md erlaubt „ss“, aber einheitlich.
@@ -76,9 +76,9 @@ Entscheidung (Nicola): Überall „ss“.
 ## [Setup] Wem gehören die Dateien im Root?
 Frage / Problem: `package.json`, `vite.config.ts`, `index.html`, `.env.development` liegen ausserhalb von `src/` und `src-tauri/`. Agent B braucht z. B. das npm-Paket `diff`.
 Meine Annahme (womit ich vorerst weitermache): Agent B darf sie ändern, Agent A nicht.
-Entscheidung (Nicola):
+Entscheidung (Nicola): bestätigt
 
 ## [Setup] Bundle-Identifier und App-Icon
 Frage / Problem: Beides ist nicht vorgegeben. Der Identifier bestimmt u. a. das App-Data-Verzeichnis und sollte vor dem ersten echten Einsatz feststehen.
 Meine Annahme (womit ich vorerst weitermache): `app.notiz.desktop`, `productName` „notiz“ ohne Punkt (Windows mag keine Pfade mit Punkt am Ende), Fenstertitel „notiz.“. Icons sind die Tauri-Platzhalter.
-Entscheidung (Nicola):
+Entscheidung (Nicola): bestätigt

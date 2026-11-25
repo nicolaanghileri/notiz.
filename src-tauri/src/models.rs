@@ -68,7 +68,7 @@ pub enum Tier {
 #[serde(rename_all = "camelCase")]
 pub struct SearchHit {
     pub note: Note,
-    /// Zeichen-Bereiche [start, end) in `note.text`
+    /// Bereiche [start, end) in `note.text`, gezählt in UTF-16-Einheiten (nicht Bytes)
     pub highlights: Vec<(usize, usize)>,
     pub score: f64,
     pub tier: Tier,

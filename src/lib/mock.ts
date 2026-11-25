@@ -259,6 +259,8 @@ export function createMockApi(): NotizApi {
   const handlers = new Map<keyof EventMap, Set<Handler>>();
   /** Laufende KI-Anfragen. Fehlt die ID, wurde abgebrochen. */
   const running = new Set<string>();
+  /** Auch vor dem Streaming-Start abgebrochen: danach kein Event mehr. */
+  const cancelled = new Set<string>();
 
   function emit<E extends keyof EventMap>(event: E, payload: EventMap[E]) {
     handlers.get(event)?.forEach((handler) => handler(payload as never));
@@ -284,6 +286,7 @@ export function createMockApi(): NotizApi {
 
   /** Schickt `text` Wort für Wort als Events. Läuft im Hintergrund weiter. */
   async function stream(requestId: string, text: string, sources?: string[]) {
+    if (cancelled.has(requestId)) return;
     running.add(requestId);
     await wait(AI_START_MS);
     if (!running.has(requestId)) return;
@@ -302,6 +305,7 @@ export function createMockApi(): NotizApi {
   }
 
   async function fail(requestId: string, message: string) {
+    if (cancelled.has(requestId)) return;
     running.add(requestId);
     await wait(AI_START_MS);
     if (running.delete(requestId)) emit("ai://error", { requestId, message });
@@ -411,6 +415,7 @@ export function createMockApi(): NotizApi {
     },
 
     async aiCancel(requestId) {
+      cancelled.add(requestId);
       running.delete(requestId);
     },
 

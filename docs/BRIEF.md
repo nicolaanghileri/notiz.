@@ -23,7 +23,7 @@ Dazu gehören 7 Design-Screenshots in `docs/design/`. Sie sind die Referenz für
 ## 1. Grundprinzipien
 
 1. **Schreiben ohne Reibung:** kein Titel, kein Ordner, keine Pflichtfelder, kein Block-Editor. Reiner Plain-Text. Automatisch speichern.
-2. **Titel wird abgeleitet:** die erste Zeile bzw. der erste Satz einer Notiz wird in Karten/Listen fett als Titel angezeigt. Der Text selbst bleibt unverändert.
+2. **Titel wird abgeleitet:** der erste Satz der ersten Zeile einer Notiz wird in Karten/Listen fett als Titel angezeigt. Der Text selbst bleibt unverändert.
 3. **KI nur auf Befehl:** Änderungen am Text erscheinen immer zuerst als Vorschau (Diff) und werden erst nach „Annehmen“ übernommen. Alles ist mit ⌘Z rückgängig zu machen.
 4. **Alles per Tastatur bedienbar:** Hover blendet Zusatzaktionen ein, aber jede Funktion hat einen Shortcut.
 5. **Ruhig:** Look wie Notion: viel Weissraum, fast keine Farbe. Blau nur für Primäraktion, Auswahl und den Punkt im Logo.
@@ -47,7 +47,7 @@ Fenster mit warmem, hellgrauem Rahmen. Darin links die Sidebar direkt auf dem Hi
 
 ### Startseite „Alle Notizen“ (Screen 1A)
 - Grosser, fetter Titel „Alle Notizen“
-- Oben rechts: Sortierung „Neueste zuerst“ + Segment-Toggle **Karten | Liste**
+- Oben rechts: Sortierung „Neueste zuerst“ (nach Erstelldatum) + Segment-Toggle **Karten | Liste**
 - Gruppen mit kleiner grauer Überschrift: „Diese Woche“, „Früher“ (später ggf. nach Monat)
 - Grid mit 4 Spalten (responsive weniger), gleich grosse Karten
 - **Erste Karte ist immer die Neu-Karte:** gestrichelte Border, runder „+“-Button, Text „Einfach losschreiben“, darunter klein „⌘N · ohne Titel, ohne Ordner“
@@ -153,6 +153,7 @@ Text markieren → schwebendes Menü direkt unter der Markierung:
 - Weisse Karte mit grossem Radius und starkem Schatten, oben mittig auf dem Bildschirm
 - Stift-Icon links, grosser Text (ca. 28 px), mehrzeilig, Cursor sofort drin
 - Fusszeile: links grau „Neue Notiz in notiz.“, rechts Hinweise: ↵ sichern · ⇧↵ neue Zeile · esc schliessen
+- Schliessen per `getCurrentWindow().hide()` im Frontend, die Berechtigung dafür gibt Agent A in `src-tauri/capabilities/` frei
 - Speichern → Fenster schliesst, Notiz landet in „Schnell erfasst“ und „Alle Notizen“, Quelle = quick
 
 ---
@@ -166,7 +167,7 @@ Text markieren → schwebendes Menü direkt unter der Markierung:
   „3 ausgewählt“ | Verbessern 1 | Korrigieren 2 | Zusammenfassen 3 | Feld „Eigene Anweisung …“ ↵ | ✕
 - **Verhalten (Vorschlag, im Design nicht gezeigt):**
   - **Zusammenfassen:** erstellt eine **neue** Notiz aus den ausgewählten (Originale bleiben), vorher Vorschau
-  - **Korrigieren / Verbessern:** Diff-Vorschau pro Notiz, nacheinander durchklicken, „Alle annehmen“ möglich
+  - **Korrigieren / Verbessern / Eigene Anweisung:** ein KI-Aufruf und eine Diff-Vorschau pro Notiz, nacheinander durchklicken, „Alle annehmen“ möglich
 
 ---
 
@@ -246,6 +247,8 @@ Titel und Vorschau werden aus `text` abgeleitet, nicht gespeichert.
 - Notiztext geht nur an die KI, wenn ich aktiv einen Befehl ausführe oder eine Frage in der Suche stelle
 - Semantische Suche braucht Embeddings. Am besten lokal berechnen, damit nicht alle Notizen ständig in die Cloud gehen.
 
+**Kennung:** Identifier `app.notiz.desktop`, productName `notiz` (ohne Punkt), Fenstertitel „notiz.“. Icons sind vorerst die Tauri-Platzhalter.
+
 **Plattform:** Desktop für macOS + Windows mit globalem Shortcut und Hintergrund-Prozess. Ein reiner Browser-Build reicht deshalb nicht. Vorschlag: Tauri oder Electron mit React + TypeScript. Andere Wahl ist okay, wenn das gleiche Ergebnis rauskommt.
 
 **Einstellungen (einfacher Dialog):** API-Key, Quick-Capture-Shortcut, Hell/Dunkel/System.
@@ -305,7 +308,7 @@ Mit realistischen deutschen Beispielnotizen testen, wie in den Screenshots (kurz
 Ein Repo, zwei Bereiche, **keine gemeinsamen Dateien**:
 
 - **Agent A – Rust-Backend:** arbeitet nur in `src-tauri/`
-- **Agent B – Frontend/UI:** arbeitet nur in `src/`
+- **Agent B – Frontend/UI:** arbeitet nur in `src/` und in der Frontend-Konfiguration im Root (`package.json`, `package-lock.json`, `vite.config.ts`, `tsconfig*.json`, `index.html`, `.env.development`)
 
 Der gemeinsame Vertrag steht in `CONTRACT.md` (Kopie unten) und wird umgesetzt in `src/lib/api.ts` bzw. `src-tauri/src/models.rs`. **Änderungen am Vertrag nur nach Absprache mit Nicola.** Offene Punkte kommen in `OPEN_QUESTIONS.md`.
 
@@ -333,7 +336,7 @@ type Filter = 'all' | 'today' | 'last7' | 'quick' | 'pinned' | 'trash';
 type Range  = 'all' | 'lastMonth' | 'thisYear';
 type AiCommand = 'improve' | 'correct' | 'summarize' | 'custom';
 
-notes_list(filter: Filter): Note[]                 // neueste zuerst
+notes_list(filter: Filter): Note[]                 // neueste zuerst (createdAt)
 notes_counts(): Record<Filter, number>
 note_get(id): Note
 note_create(text: string, source: Source): Note
@@ -344,7 +347,8 @@ note_restore(id): void
 note_delete_forever(id): void
 
 search(requestId: string, query: string, range: Range): {
-  hits: { note: Note; highlights: [number, number][]; score: number;
+  hits: { note: Note; score: number;
+          highlights: [number, number][];          // UTF-16-Bereiche [start, end)
           tier: 'match' | 'weak' }[];              // 'weak' = "Weniger passend"
   answerRequestId: string | null;                  // = requestId, null bei reinem Stichwort
 }
@@ -352,11 +356,11 @@ search(requestId: string, query: string, range: Range): {
 ai_transform(requestId: string, command: AiCommand, text: string,
              instruction?: string): void           // Ergebnis per Events
 ai_summarize_notes(requestId: string, ids: string[]): void
-ai_cancel(requestId: string): void
+ai_cancel(requestId: string): void                 // danach kein Event mehr
 
 settings_get(): { theme: 'light'|'dark'|'system'; captureShortcut: string;
                   hasApiKey: boolean }
-settings_set(partial): void
+settings_set(partial: Partial<Settings>): void     // ohne hasApiKey
 api_key_set(key: string): void
 ```
 
@@ -366,7 +370,7 @@ api_key_set(key: string): void
 'ai://chunk'   { requestId, delta: string }
 'ai://done'    { requestId, text: string, sources?: string[] }  // sources = Note-IDs für Kurzantwort
 'ai://error'   { requestId, message: string }
-'notes://changed' { id }                         // z. B. nach Quick Capture
+'notes://changed' { id }                         // nur ausserhalb der aktuellen Ansicht, z. B. Quick Capture
 ```
 
-Die Kurzantwort der Suche läuft über dieselben `ai://`-Events mit der `requestId`, die das Frontend bei `search` mitgibt. Das Frontend kennt die ID also, bevor das erste Event eintrifft. Das Frontend rendert Quellen-Badges [1] [2] [3] in Reihenfolge der `hits`.
+Die Kurzantwort der Suche läuft über dieselben `ai://`-Events mit der `requestId`, die das Frontend bei `search` mitgibt. Das Frontend kennt die ID also, bevor das erste Event eintrifft. Der Antworttext enthält die Quellen-Badges als `[1]`, `[2]`, `[3]`, 1-basiert in der Reihenfolge der `hits`. Zeiträume und weitere Details: `CONTRACT.md`.

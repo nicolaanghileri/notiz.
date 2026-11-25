@@ -24,7 +24,7 @@ export type AiCommand = "improve" | "correct" | "summarize" | "custom";
 
 export interface SearchHit {
   note: Note;
-  /** Zeichen-Bereiche [start, end) in note.text */
+  /** UTF-16-Bereiche [start, end): note.text.slice(start, end) */
   highlights: [number, number][];
   score: number;
   /** "weak" = Abschnitt „Weniger passend“ */

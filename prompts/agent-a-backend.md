@@ -11,7 +11,8 @@ Du bist Agent A (Backend) im Projekt "notiz.". Lies zuerst:
 - CONTRACT.md
 
 Regeln:
-- Du arbeitest NUR in src-tauri/. Dateien in src/ fasst du nicht an.
+- Du arbeitest NUR in src-tauri/. Dateien in src/ und die
+  Frontend-Konfiguration im Root fasst du nicht an.
 - CONTRACT.md ist verbindlich. Nicht ändern. Wenn etwas fehlt oder
   unklar ist: in OPEN_QUESTIONS.md eintragen (mit "[Agent A]") und mit
   einer sinnvollen Annahme weitermachen.

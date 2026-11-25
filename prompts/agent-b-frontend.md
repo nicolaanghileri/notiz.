@@ -12,7 +12,9 @@ Du bist Agent B (Frontend) im Projekt "notiz.". Lies zuerst:
 - die 7 Screenshots in docs/design/ (das ist die Design-Referenz)
 
 Regeln:
-- Du arbeitest NUR in src/. Dateien in src-tauri/ fasst du nicht an.
+- Du arbeitest NUR in src/ und in der Frontend-Konfiguration im Root
+  (package.json, vite.config.ts usw., siehe AGENTS.md).
+  Dateien in src-tauri/ fasst du nicht an.
 - Du arbeitest gegen die Mock-API in src/lib/api.ts (VITE_USE_MOCK=true).
 - CONTRACT.md ist verbindlich. Nicht ändern. Wenn etwas fehlt oder
   unklar ist: in OPEN_QUESTIONS.md eintragen (mit "[Agent B]") und mit
