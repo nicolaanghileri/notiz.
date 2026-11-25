@@ -1,8 +1,16 @@
 mod commands;
+mod db;
 mod models;
+
+use tauri::Manager;
 
 pub fn run() {
     tauri::Builder::default()
+        .setup(|app| {
+            let path = app.path().app_data_dir()?.join("notiz.db");
+            app.manage(db::Db::open(&path)?);
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::notes_list,
             commands::notes_counts,

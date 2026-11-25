@@ -14,8 +14,19 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.7.6", features = [] }
 
 [dependencies]
+chrono = "0.4"
+fastembed = { version = "7.8", default-features = false, features = ["ort-download-binaries-native-tls", "hf-hub-native-tls", "fancy-regex"] }
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+keyring = "4.2"
+log = "0.4"
+reqwest = { version = "0.13", default-features = false, features = ["charset", "http2", "json", "native-tls", "stream", "system-proxy"] }
+rusqlite = { version = "0.43", features = ["bundled"] }
 serde = { version = "1.0", features = ["derive"] }
-tauri = { version = "2.12.7", features = [] }
-
-[dev-dependencies]
-serde_json = "1.0"
+serde_json = "1"
+tauri = { version = "2.12.7", features = ["image-png", "tray-icon"] }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-single-instance = "2"
+tokio = { version = "1", features = ["sync", "time", "macros", "rt"] }
+tokio-util = "0.7"
+unicode-normalization = "0.1"
+uuid = { version = "1", features = ["v4"] }
