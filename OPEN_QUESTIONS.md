@@ -82,3 +82,58 @@ Entscheidung (Nicola): bestätigt
 Frage / Problem: Beides ist nicht vorgegeben. Der Identifier bestimmt u. a. das App-Data-Verzeichnis und sollte vor dem ersten echten Einsatz feststehen.
 Meine Annahme (womit ich vorerst weitermache): `app.notiz.desktop`, `productName` „notiz“ ohne Punkt (Windows mag keine Pfade mit Punkt am Ende), Fenstertitel „notiz.“. Icons sind die Tauri-Platzhalter.
 Entscheidung (Nicola): bestätigt
+
+## [Agent A] `sources` der Kurzantwort: nur zitierte Notizen
+Frage / Problem: Der Vertrag sagt „Note-IDs, auf die sich eine Kurzantwort stützt“. Zitiert die Antwort nur [1] und [3], ist unklar, ob `sources` alle mitgeschickten Notizen enthält oder nur die zitierten.
+Meine Annahme (womit ich vorerst weitermache): Nur die zitierten, aufsteigend nach Nummer (`[id1, id3]`). Badge `[n]` gehört immer zu `hits[n-1]`, **nicht** zu `sources[n-1]`. Das Frontend sollte also über `hits` auflösen. Ungültige Nummern entfernt das Backend aus dem Text. Hat die Antwort gar keine gültige Quelle, ersetzt das Backend sie in `ai://done` durch „Dazu habe ich in deinen Notizen nichts gefunden.“ mit `sources: []` (die gestreamten Chunks können davon abweichen, massgebend ist `done.text`). In die Kurzantwort gehen höchstens die ersten 5 `match`-Treffer.
+Entscheidung (Nicola):
+
+## [Agent A] Neue Suchfrage bricht die vorherige Kurzantwort ab
+Frage / Problem: Tippt man eine Frage und sucht erneut, laufen sonst mehrere Kurzantworten parallel (Kosten, Notiztext geht mehrfach raus).
+Meine Annahme (womit ich vorerst weitermache): Jede neue `search` mit Kurzantwort bricht die vorherige ab, wie `ai_cancel`: Für die alte `requestId` kommt kein Event mehr. Das Frontend sollte `search` bei Fragen trotzdem nicht pro Tastendruck aufrufen, sondern debounced oder erst bei ↵.
+Entscheidung (Nicola):
+
+## [Agent A] Eingabefehler bei KI-Befehlen als Command-Fehler
+Frage / Problem: Leere Markierung, leere eigene Anweisung oder `ai_summarize_notes` ohne IDs bzw. mit unbekannter ID.
+Meine Annahme (womit ich vorerst weitermache): Das Command selbst gibt einen Fehler-String zurück, es kommt kein `ai://`-Event. `ai://error` gibt es nur für Fehler während der Anfrage (kein API-Key, Netz, Limit, Abbruch durch Claude).
+Entscheidung (Nicola):
+
+## [Agent A] Modelle
+Frage / Problem: Der Brief verlangt ein schnelles Modell für Textbefehle und ein stärkeres für Kurzantworten, nennt aber keine Namen.
+Meine Annahme (womit ich vorerst weitermache): `claude-haiku-5-5` für Verbessern/Korrigieren/Zusammenfassen/eigene Anweisung (eine Markierung). `claude-opus-5-5` für die Kurzantwort und `ai_summarize_notes` (mehrere Notizen), mit serverseitigem Fallback auf ein anderes Modell, falls Claude aus Sicherheitsgründen ablehnt. Konstanten in `src-tauri/src/ai.rs`.
+Entscheidung (Nicola):
+
+## [Agent A] Embedding-Modell wird beim ersten Start heruntergeladen
+Frage / Problem: fastembed lädt multilingual-e5-small (ca. 470 MB) einmalig von Hugging Face ins App-Data-Verzeichnis (`models/`). Dabei geht kein Notiztext raus. Bis das Modell bereit ist (oder offline), läuft die Suche nur über Wörter. Der Vertrag hat kein Feld, um diesen Zustand anzuzeigen.
+Meine Annahme (womit ich vorerst weitermache): Kein UI-Hinweis, die Suche funktioniert einfach schrittweise besser. Neuer Download-Versuch alle 10 Minuten bzw. nach dem nächsten Speichern.
+Entscheidung (Nicola):
+
+## [Agent A] Grenzen der semantischen Suche
+Frage / Problem: Am echten Modell gemessen (8 Fragen auf den Beispielnotizen, siehe `embedder::tests::calibrate`): 6 liefern genau die richtigen Notizen, keine falschen Treffer. Synonyme kennt das kleine Modell aber schlecht: „Fahrrad“ findet „Velo“ nicht, „Geschenkidee Geburtstag“ nicht „Lenas Geburi“. „Brunner … Ventil im Bad“ erscheint zur Heizungsfrage nur unter „Weniger passend“ (Screen 4 zeigt es als Quelle).
+Meine Annahme (womit ich vorerst weitermache): So lassen. Besser würde es mit multilingual-e5-base (ca. 1.1 GB Download, langsamer). Die Konstante lässt sich in `embedder.rs` ändern, die Vektoren werden dann automatisch neu berechnet. Die Schwellen müssten danach neu kalibriert werden.
+Entscheidung (Nicola):
+
+## [Agent A] Highlights bei Bedeutungs-Treffern
+Frage / Problem: Screen 4 markiert auch Stellen, die nicht wörtlich zur Frage passen.
+Meine Annahme (womit ich vorerst weitermache): Wort-Treffer markieren ganze Wörter (aufeinanderfolgende werden zu einem Bereich zusammengefasst, z. B. „Heizung Bad“). Notizen, die nur über die Bedeutung „passend“ sind, bekommen den ähnlichsten Satz markiert (bei einzeiligen Notizen keine Markierung). „Weniger passend“ ohne Wort-Treffer hat keine Markierung.
+Entscheidung (Nicola):
+
+## [Agent A] Quick-Capture-Fenster
+Frage / Problem: Grösse, Transparenz und Fokus sind nicht festgelegt.
+Meine Annahme (womit ich vorerst weitermache): Rahmenloses, **transparentes** Fenster 760×300 (logisch) oben mittig auf dem Bildschirm mit dem Mauszeiger, immer im Vordergrund, auch über Vollbild-Spaces. Die Karte samt Schatten zeichnet das Frontend, der Rest muss transparent bleiben (`html, body { background: transparent }`). Das Frontend darf die Höhe per `setSize` anpassen (`capabilities/capture.json`). Für Transparenz auf macOS ist `macOSPrivateApi` aktiv, das schliesst einen Mac-App-Store-Vertrieb aus. Der Shortcut schaltet das Fenster ein und aus. Klick daneben schliesst es nicht. Nach `hide()` gibt macOS den Fokus ans vorherige Programm zurück, wenn das Hauptfenster nicht offen ist. Beim Öffnen sendet das Backend kein Event. Das Frontend kann Fokus-Events des Fensters nutzen (`onFocusChanged`), um das Feld zu leeren bzw. den Cursor zu setzen.
+Entscheidung (Nicola):
+
+## [Agent A] Format von `captureShortcut`
+Frage / Problem: Welche Schreibweise akzeptiert `settings_set`?
+Meine Annahme (womit ich vorerst weitermache): Die Syntax des Tauri-Shortcut-Plugins: Modifier `Alt`/`Option`, `Ctrl`/`Control`, `Shift`, `Cmd`/`Super`, `CmdOrCtrl`, Taste z. B. `Space`, `N`, `F5`, mit „+“ verbunden („Alt+Space“). Mindestens ein Modifier ist Pflicht. Ist das Kürzel ungültig oder schon belegt, kommt ein Fehler-String, und der alte Shortcut bleibt aktiv.
+Entscheidung (Nicola):
+
+## [Agent A] Autostart
+Frage / Problem: Der Brief (Abschnitt 14) nennt das Autostart-Plugin, die Aufgabe und der Vertrag nicht (keine Einstellung dafür).
+Meine Annahme (womit ich vorerst weitermache): Nicht eingebaut. Ohne Autostart funktioniert Quick Capture erst, wenn die App einmal gestartet wurde. Vorschlag: Einstellung `launchAtLogin: boolean` im Vertrag ergänzen.
+Entscheidung (Nicola):
+
+## [Agent A] Kleinigkeiten im Verhalten der Notiz-Commands
+Frage / Problem: Nicht im Vertrag geregelt.
+Meine Annahme (womit ich vorerst weitermache): `note_set_pinned` ändert `updatedAt` nicht (nur Textänderungen). Nochmaliges `note_delete` behält das ursprüngliche `deletedAt`. `note_delete_forever` geht auch für Notizen ausserhalb des Papierkorbs. `note_create` nimmt auch leeren Text an. Bei unbekannter ID kommt „Notiz nicht gefunden“. Leere Notizen bekommen keine Vektoren.
+Entscheidung (Nicola):

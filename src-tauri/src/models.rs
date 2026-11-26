@@ -1,9 +1,6 @@
 //! Typen aus CONTRACT.md. Gegenstück: src/lib/types.ts.
 //! Nicht eigenmächtig ändern, siehe AGENTS.md.
 
-// Phase 0: Felder und Events werden erst von Agent A benutzt. Danach entfernen.
-#![allow(dead_code)]
-
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
