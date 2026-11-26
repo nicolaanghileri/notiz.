@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Editor } from "./components/Editor";
 import { NotesView } from "./components/NotesView";
 import { SearchView } from "./components/SearchView";
+import { SettingsDialog } from "./components/SettingsDialog";
 import { FILTER_LABELS, Sidebar } from "./components/Sidebar";
 import { ToastProvider, errorText, useToast } from "./components/Toast";
 import * as api from "./lib/api";
@@ -49,7 +50,6 @@ function Shell() {
   const [lastFilter, setLastFilter] = useState<Filter>("all");
   const [version, setVersion] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  void settingsOpen;
   const [counts, setCounts] = useState<NoteCounts | null>(null);
   const toast = useToast();
 
@@ -96,6 +96,9 @@ function Shell() {
       } else if (key === "k" && !e.shiftKey) {
         e.preventDefault();
         setView({ kind: "search" });
+      } else if (e.key === "," && !e.shiftKey) {
+        e.preventDefault();
+        setSettingsOpen(true);
       } else if (!e.shiftKey && /^[1-5]$/.test(e.key)) {
         e.preventDefault();
         showFilter(FILTER_SHORTCUTS[Number(e.key) - 1]);
@@ -172,6 +175,7 @@ function Shell() {
           </div>
         )}
       </main>
+      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }
