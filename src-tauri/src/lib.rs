@@ -1,9 +1,12 @@
+mod ai;
+mod ai_runner;
 mod commands;
 mod db;
 mod embedder;
 mod models;
 mod notes;
 mod search;
+mod secrets;
 mod timerange;
 
 use tauri::Manager;
@@ -14,6 +17,8 @@ pub fn run() {
             let data_dir = app.path().app_data_dir()?;
             app.manage(db::Db::open(&data_dir.join("notiz.db"))?);
             app.manage(embedder::SemanticIndex::new());
+            app.manage(secrets::Secrets::new());
+            app.manage(ai_runner::AiState::new());
             embedder::start(app.handle().clone(), data_dir.join("models"));
             Ok(())
         })
