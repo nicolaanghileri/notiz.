@@ -67,6 +67,11 @@ export class NoteSaver {
     return this.chain;
   }
 
+  /** (Wieder) aktiv: Status-Updates melden. StrictMode ruft Cleanups doppelt auf. */
+  attach() {
+    this.disposed = false;
+  }
+
   /** Beim Verlassen: Rest speichern, danach keine Status-Updates mehr */
   dispose(): Promise<boolean> {
     const done = this.flush();

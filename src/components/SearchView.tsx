@@ -4,7 +4,7 @@ import * as api from "../lib/api";
 import { runAi, type AiRequest } from "../lib/ai";
 import { formatFull, formatShort, formatSource } from "../lib/dates";
 import { deriveTitle } from "../lib/noteText";
-import { kbd } from "../lib/platform";
+import { kbd, modKey } from "../lib/platform";
 import type { Note, Range, SearchHit, SearchResult } from "../lib/types";
 import { errorText } from "./Toast";
 import { cx, Kbd } from "./ui";
@@ -126,7 +126,17 @@ export function SearchView({
   const generation = useRef(0);
 
   useEffect(() => {
-    if (active) input.current?.focus();
+    if (!active) return;
+    input.current?.focus();
+    // ⌘K in der offenen Suche: Feld fokussieren und Text markieren
+    const onKey = (e: KeyboardEvent) => {
+      if (modKey(e) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "k") {
+        input.current?.focus();
+        input.current?.select();
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [active]);
 
   useEffect(() => () => request.current?.cancel(), []);

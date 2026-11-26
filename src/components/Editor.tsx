@@ -122,6 +122,7 @@ export function Editor({ noteId, backLabel, onBack, onCreated, onChanged, onOpen
   // Beim Verlassen speichern
   useEffect(() => {
     const current = saver.current!;
+    current.attach();
     const flush = () => void current.flush();
     window.addEventListener("blur", flush);
     window.addEventListener("beforeunload", flush);
