@@ -1,9 +1,5 @@
 //! Alle Commands aus CONTRACT.md.
 
-// Parameternamen gehören zum Vertrag (Tauri leitet die JS-Namen daraus ab),
-// deshalb kein `_`-Präfix. Entfernen, sobald die Stubs implementiert sind.
-#![allow(unused_variables)]
-
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::ai::{self, AiEvent, PromptNote};
@@ -15,12 +11,10 @@ use crate::models::{
     SearchResult, Settings, SettingsPatch, Source, Tier,
 };
 use crate::notes;
+use crate::secrets::Secrets;
+use crate::settings;
 
 type CommandResult<T> = Result<T, String>;
-
-fn not_implemented<T>() -> CommandResult<T> {
-    Err("not implemented".into())
-}
 
 #[tauri::command(async)]
 pub fn notes_list(db: State<Db>, filter: Filter) -> CommandResult<Vec<Note>> {
@@ -203,17 +197,19 @@ pub fn ai_cancel(state: State<AiState>, request_id: String) -> CommandResult<()>
     Ok(())
 }
 
-#[tauri::command]
-pub fn settings_get() -> CommandResult<Settings> {
-    not_implemented()
+#[tauri::command(async)]
+pub fn settings_get(db: State<Db>, secrets: State<Secrets>) -> CommandResult<Settings> {
+    // Ist der Keychain nicht lesbar, gilt das als „kein Key“; die KI meldet den Fehler.
+    let has_api_key = secrets.api_key().map(|key| key.is_some()).unwrap_or(false);
+    settings::get(&db.lock(), has_api_key)
 }
 
-#[tauri::command]
-pub fn settings_set(partial: SettingsPatch) -> CommandResult<()> {
-    not_implemented()
+#[tauri::command(async)]
+pub fn settings_set(db: State<Db>, partial: SettingsPatch) -> CommandResult<()> {
+    settings::set(&db.lock(), &partial)
 }
 
-#[tauri::command]
-pub fn api_key_set(key: String) -> CommandResult<()> {
-    not_implemented()
+#[tauri::command(async)]
+pub fn api_key_set(secrets: State<Secrets>, key: String) -> CommandResult<()> {
+    secrets.set_api_key(&key)
 }

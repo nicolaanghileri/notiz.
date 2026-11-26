@@ -7,6 +7,7 @@ mod models;
 mod notes;
 mod search;
 mod secrets;
+mod settings;
 mod timerange;
 
 use tauri::Manager;

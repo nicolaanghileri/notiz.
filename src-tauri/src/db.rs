@@ -54,6 +54,11 @@ const MIGRATIONS: &[&str] = &[
     CREATE TRIGGER note_vectors_stale AFTER UPDATE OF text ON notes BEGIN
         DELETE FROM note_vectors WHERE note_seq = new.seq;
     END;",
+    // 4: Einstellungen (ohne API-Key, der liegt im Keychain)
+    "CREATE TABLE settings (
+        key   TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+    ) WITHOUT ROWID;",
 ];
 
 pub struct Db {
