@@ -58,7 +58,9 @@ pub fn word_hits(
         .map_err(db_error)?;
 
     // Pro Notiz: welche Begriffe kommen vor, wo?
-    let matched: Vec<(Vec<bool>, Vec<(usize, usize)>)> = candidates
+    // Pro Notiz: gefundene Begriffe und Bereiche
+    type Matched = (Vec<bool>, Vec<(usize, usize)>);
+    let matched: Vec<Matched> = candidates
         .iter()
         .map(|(_, note)| {
             let mut found = vec![false; terms.len()];

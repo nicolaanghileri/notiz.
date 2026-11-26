@@ -205,7 +205,11 @@ pub fn settings_get(db: State<Db>, secrets: State<Secrets>) -> CommandResult<Set
 }
 
 #[tauri::command(async)]
-pub fn settings_set(db: State<Db>, partial: SettingsPatch) -> CommandResult<()> {
+pub fn settings_set(app: AppHandle, db: State<Db>, partial: SettingsPatch) -> CommandResult<()> {
+    // Erst registrieren: ist das Kürzel belegt, bleibt alles beim Alten.
+    if let Some(shortcut) = &partial.capture_shortcut {
+        crate::capture::set_shortcut(&app, shortcut)?;
+    }
     settings::set(&db.lock(), &partial)
 }
 

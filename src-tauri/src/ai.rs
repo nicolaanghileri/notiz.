@@ -276,10 +276,10 @@ impl Requests {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .replace(id.to_string());
-        if let Some(previous) = previous.filter(|p| p != id) {
-            if let Some(token) = self.active().remove(&previous) {
-                token.cancel();
-            }
+        if let Some(previous) = previous.filter(|p| p != id)
+            && let Some(token) = self.active().remove(&previous)
+        {
+            token.cancel();
         }
     }
 
