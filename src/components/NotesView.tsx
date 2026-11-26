@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { dayKey, formatDayHeading, startOfWeek } from "../lib/dates";
-import { modKey } from "../lib/platform";
+import { kbd, modKey } from "../lib/platform";
+import type { AiCommand } from "../lib/types";
+import { AI_COMMANDS } from "./ai";
+import { SelectionBar, SummarizeDialog, TransformDialog } from "./Batch";
 import type { Filter, Note } from "../lib/types";
 import { NewNoteCard, NoteCard, NoteRow, type CardHandlers } from "./NoteCard";
 import { FILTER_LABELS } from "./Sidebar";
@@ -75,12 +78,20 @@ export function NotesView({
   notes,
   onOpen,
   onNew,
+  onChanged,
 }: {
   filter: Filter;
   notes: Note[] | null;
   onOpen: (note: Note) => void;
   onNew: () => void;
+  onChanged: () => void;
 }) {
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const anchor = useRef<string | null>(null);
+  const [batch, setBatch] = useState<{ command: AiCommand; instruction?: string; notes: Note[] } | null>(null);
+  const selectable = filter !== "trash";
+  const selecting = selected.size > 0;
+
   const [layout, setLayout] = useState<Layout>(() =>
     localStorage.getItem(LAYOUT_KEY) === "list" ? "list" : "cards",
   );
@@ -88,14 +99,26 @@ export function NotesView({
 
   useEffect(() => {
     scroller.current?.scrollTo({ top: 0 });
+    setSelected(new Set());
+    anchor.current = null;
   }, [filter]);
+
+  // Nicht mehr vorhandene Notizen aus der Auswahl entfernen
+  useEffect(() => {
+    if (!notes) return;
+    const ids = new Set(notes.map((note) => note.id));
+    setSelected((current) => {
+      const next = new Set([...current].filter((id) => ids.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [notes]);
 
   const changeLayout = (value: Layout) => {
     setLayout(value);
     localStorage.setItem(LAYOUT_KEY, value);
   };
 
-  const showNewCard = filter === "all" || filter === "today" || filter === "last7";
+  const showNewCard = (filter === "all" || filter === "today" || filter === "last7") && !selecting;
   const groups = useMemo(() => {
     if (!notes) return [];
     if (layout === "list") return groupByDay(notes);
@@ -103,12 +126,70 @@ export function NotesView({
     return grouped.filter((group) => group.notes.length > 0 || (showNewCard && group.key === "week"));
   }, [notes, layout, showNewCard]);
 
+  /** Angezeigte Reihenfolge, für ⇧-Klick-Bereiche */
+  const ordered = useMemo(() => groups.flatMap((group) => group.notes), [groups]);
+
+  const toggle = (note: Note) => {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(note.id)) next.delete(note.id);
+      else next.add(note.id);
+      return next;
+    });
+    anchor.current = note.id;
+  };
+
+  const selectRange = (note: Note) => {
+    const from = ordered.findIndex((n) => n.id === anchor.current);
+    const to = ordered.findIndex((n) => n.id === note.id);
+    if (from === -1) return toggle(note);
+    const [a, b] = from < to ? [from, to] : [to, from];
+    setSelected((current) => new Set([...current, ...ordered.slice(a, b + 1).map((n) => n.id)]));
+  };
+
   const handlers: CardHandlers = {
     onActivate: (note, e: MouseEvent | KeyboardEvent) => {
-      if (modKey(e) || e.shiftKey) return;
-      onOpen(note);
+      if (selectable && e.shiftKey) {
+        e.preventDefault();
+        selectRange(note);
+      } else if (selectable && (modKey(e) || (selecting && e.type === "click"))) {
+        toggle(note);
+      } else if (!modKey(e)) {
+        onOpen(note);
+      }
     },
+    onToggle: selectable ? (note, e) => (e.shiftKey ? selectRange(note) : toggle(note)) : undefined,
   };
+
+  const clear = () => {
+    setSelected(new Set());
+    anchor.current = null;
+  };
+
+  const run = (command: AiCommand, instruction?: string) => {
+    const chosen = ordered.filter((note) => selected.has(note.id));
+    if (chosen.length) setBatch({ command, instruction, notes: chosen });
+  };
+
+  // esc hebt die Auswahl auf, 1/2/3 starten einen KI-Befehl
+  useEffect(() => {
+    if (!selecting || batch) return;
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || e.isComposing) return;
+      if ((e.target as HTMLElement).matches("input, textarea")) return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        clear();
+      }
+      const item = AI_COMMANDS.find(({ key }) => key === e.key);
+      if (item) {
+        e.preventDefault();
+        run(item.command);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
 
   const empty = notes !== null && notes.length === 0 && !(showNewCard && layout === "cards");
 
@@ -116,6 +197,11 @@ export function NotesView({
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between gap-[1rem] px-[3.1rem] pt-[2.4rem] pb-[0.6rem]">
         <h1 className="truncate text-title font-semibold tracking-[-0.015em]">{FILTER_LABELS[filter]}</h1>
+        {selecting ? (
+          <span className="text-label text-muted">
+            {kbd("mod")}-Klick oder {kbd("shift")}-Klick wählt mehrere
+          </span>
+        ) : (
         <div className="flex items-center gap-[1.2rem]">
           <span className="text-label text-muted">Neueste zuerst</span>
           <Segmented
@@ -128,6 +214,7 @@ export function NotesView({
             ]}
           />
         </div>
+        )}
       </header>
 
       <div ref={scroller} className="@container min-h-0 flex-1 overflow-y-auto px-[3.1rem] pb-[7rem]" onKeyDown={moveFocus}>
@@ -147,13 +234,13 @@ export function NotesView({
                   </div>
                 )}
                 {group.notes.map((note) => (
-                  <NoteCard key={note.id} note={note} selected={false} selecting={false} handlers={handlers} />
+                  <NoteCard key={note.id} note={note} selected={selected.has(note.id)} selecting={selecting} handlers={handlers} />
                 ))}
               </div>
             ) : (
               <div className="mx-auto flex max-w-[68.75rem] flex-col gap-[0.8rem]">
                 {group.notes.map((note) => (
-                  <NoteRow key={note.id} note={note} selected={false} selecting={false} handlers={handlers} />
+                  <NoteRow key={note.id} note={note} selected={selected.has(note.id)} selecting={selecting} handlers={handlers} />
                 ))}
               </div>
             )}
@@ -161,6 +248,31 @@ export function NotesView({
         ))}
         {notes === null && <p className="pt-[3rem] text-body text-muted">Lädt …</p>}
       </div>
+
+      {selecting && !batch && <SelectionBar count={selected.size} onRun={run} onClear={clear} />}
+      {batch?.command === "summarize" && (
+        <SummarizeDialog
+          notes={batch.notes}
+          onClose={() => setBatch(null)}
+          onCreated={() => {
+            setBatch(null);
+            clear();
+            onChanged();
+          }}
+        />
+      )}
+      {batch && batch.command !== "summarize" && (
+        <TransformDialog
+          notes={batch.notes}
+          command={batch.command}
+          instruction={batch.instruction}
+          onClose={() => {
+            setBatch(null);
+            clear();
+          }}
+          onChanged={onChanged}
+        />
+      )}
     </div>
   );
 }

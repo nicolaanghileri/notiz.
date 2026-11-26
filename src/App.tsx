@@ -143,6 +143,7 @@ function Shell() {
             filter={view.filter}
             notes={notes}
             onNew={newNote}
+            onChanged={bump}
             onOpen={(note) => openNote(note, view.filter)}
           />
         )}
