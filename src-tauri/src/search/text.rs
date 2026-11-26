@@ -182,7 +182,8 @@ const STOPWORDS: &[&str] = &[
 ];
 
 /// Häufige deutsche Endungen, damit „Heizungen“ auch „Heizung“ findet.
-const SUFFIXES: &[&str] = &["ern", "en", "er", "es", "em", "e", "n", "s"];
+/// „-ung“ fällt auch weg: „Heizung“ findet so „Heizkosten“ und „heizen“.
+const SUFFIXES: &[&str] = &["ungen", "ung", "ern", "en", "er", "es", "em", "e", "n", "s"];
 
 /// Ein Suchbegriff aus der Anfrage.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -255,6 +256,24 @@ pub fn query_terms(query: &str) -> Vec<Term> {
     terms
 }
 
+/// Text für das Embedding der Anfrage: nur die Inhaltswörter, in Originalschreibweise.
+/// Sonst ähneln Fragen („wann war das …?“) Notizen, die selbst Fragen sind.
+pub fn semantic_query(query: &str) -> String {
+    let content: Vec<String> = tokens(query)
+        .into_iter()
+        .filter(|token| !STOPWORDS.contains(&token.folded.as_str()))
+        .map(|token| {
+            let units: Vec<u16> = query.encode_utf16().collect();
+            String::from_utf16_lossy(&units[token.start..token.end])
+        })
+        .collect();
+    if content.is_empty() {
+        query.trim().to_string()
+    } else {
+        content.join(" ")
+    }
+}
+
 const QUESTION_WORDS: &[&str] = &[
     "wo", "was", "wann", "wer", "wie", "warum", "wieso", "weshalb", "welche", "welcher", "welches",
     "welchen", "welchem", "wem", "wen", "wohin", "woher", "womit", "wozu", "wieviel", "hab",
@@ -321,7 +340,7 @@ mod tests {
             terms,
             [
                 Term {
-                    stem: "heizung".into(),
+                    stem: "heiz".into(),
                     prefix: true
                 },
                 Term {
@@ -331,10 +350,21 @@ mod tests {
             ]
         );
         assert!(terms[0].matches("heizung"));
+        assert!(terms[0].matches("heizkosten"));
         assert!(terms[1].matches("badezimmer"));
         assert_eq!(query_terms("was ist das").len(), 3);
         assert_eq!(query_terms("Dr").first().unwrap().fts(), "\"dr\"");
         assert!(query_terms("?!").is_empty());
+    }
+
+    #[test]
+    fn semantic_query_keeps_content_words() {
+        assert_eq!(semantic_query("Wann war das mit der Heizung?"), "Heizung");
+        assert_eq!(
+            semantic_query("was muss ich für die Steuern noch machen?"),
+            "muss Steuern machen"
+        );
+        assert_eq!(semantic_query(" was ist das "), "was ist das");
     }
 
     #[test]

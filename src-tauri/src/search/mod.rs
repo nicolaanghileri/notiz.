@@ -133,26 +133,80 @@ fn prefixed_columns(table: &str) -> String {
         .join(", ")
 }
 
-/// Schwellen für die Cosine-Ähnlichkeit, abhängig vom Modell.
-/// NOCH NICHT KALIBRIERT: Schätzwerte für multilingual-e5-small (typisch
-/// 0.75–0.80 ohne Bezug, 0.85+ bei klarem Bezug). Prüfen mit
-/// `embedder::tests::calibrate`. Darunter zählt Bedeutung nicht.
-pub const SEM_FLOOR: f32 = 0.80;
-/// Ab hier gilt Bedeutung als voll getroffen.
-const SEM_CEIL: f32 = 0.90;
-/// Ab hier ist eine Notiz auch ohne gemeinsame Wörter „passend“ (Frage).
-const SEM_MATCH: f32 = 0.86;
-/// Bei reinen Stichwörtern braucht es mehr, damit Wort-Treffer vorne bleiben.
-const SEM_MATCH_KEYWORDS: f32 = 0.88;
-/// Ab hier erscheint eine Notiz unter „Weniger passend“.
-const SEM_WEAK: f32 = 0.83;
+/// Bewertung der Bedeutung. Die Cosine-Werte von multilingual-e5-small liegen
+/// je nach Anfrage auf einem anderen Grundniveau (gemessen: Median 0.78–0.83).
+/// Deshalb zählt der Abstand zum Median aller Notizen, in robusten
+/// Streuungseinheiten (MAD). Kalibriert mit `embedder::tests::calibrate`.
+const MATCH_Z: f32 = 2.5;
+const MATCH_DELTA: f32 = 0.025;
+const WEAK_Z: f32 = 1.5;
+const WEAK_DELTA: f32 = 0.015;
+/// Darunter ist die Streuung nicht aussagekräftig.
+const MIN_SPREAD: f32 = 0.008;
+/// Bei wenigen Notizen gibt es keinen sinnvollen Median: feste Schwellen.
+const MIN_NOTES_FOR_STATS: usize = 8;
+const ABSOLUTE_MATCH: f32 = 0.87;
+const ABSOLUTE_WEAK: f32 = 0.85;
 /// Höchstens so viele Treffer nur aus Bedeutung bzw. unter „Weniger passend“.
 const MAX_SEMANTIC_MATCHES: usize = 8;
 const MAX_WEAK: usize = 8;
 const MAX_MATCHES: usize = 100;
 
-fn semantic_strength(similarity: f32) -> f64 {
-    (((similarity - SEM_FLOOR) / (SEM_CEIL - SEM_FLOOR)).clamp(0.0, 1.0)) as f64
+struct Judge {
+    /// `None` = zu wenige Notizen, feste Schwellen
+    stats: Option<(f32, f32)>,
+}
+
+impl Judge {
+    fn new(hits: &[SemanticHit]) -> Self {
+        if hits.len() < MIN_NOTES_FOR_STATS {
+            return Self { stats: None };
+        }
+        let median = |mut values: Vec<f32>| {
+            values.sort_by(f32::total_cmp);
+            let mid = values.len() / 2;
+            if values.len().is_multiple_of(2) {
+                (values[mid - 1] + values[mid]) / 2.0
+            } else {
+                values[mid]
+            }
+        };
+        let center = median(hits.iter().map(|hit| hit.similarity).collect());
+        let mad = median(
+            hits.iter()
+                .map(|hit| (hit.similarity - center).abs())
+                .collect(),
+        );
+        Self {
+            stats: Some((center, (mad * 1.4826).max(MIN_SPREAD))),
+        }
+    }
+
+    fn passes(&self, similarity: f32, z_min: f32, delta_min: f32, absolute: f32) -> bool {
+        match self.stats {
+            Some((center, spread)) => {
+                (similarity - center) / spread >= z_min && similarity - center >= delta_min
+            }
+            None => similarity >= absolute,
+        }
+    }
+
+    fn is_match(&self, similarity: f32) -> bool {
+        self.passes(similarity, MATCH_Z, MATCH_DELTA, ABSOLUTE_MATCH)
+    }
+
+    fn is_weak(&self, similarity: f32) -> bool {
+        self.passes(similarity, WEAK_Z, WEAK_DELTA, ABSOLUTE_WEAK)
+    }
+
+    /// 0..1 für den Score
+    fn strength(&self, similarity: f32) -> f64 {
+        let value = match self.stats {
+            Some((center, spread)) => ((similarity - center) / spread - WEAK_Z) / 3.5,
+            None => (similarity - 0.80) / 0.10,
+        };
+        value.clamp(0.0, 1.0) as f64
+    }
 }
 
 /// Ergebnis der Suche: `match` vor `weak`, je nach Score sortiert.
@@ -170,11 +224,7 @@ pub fn search(
         Some(vector) if !query.trim().is_empty() => semantic::rank(conn, vector, &bounds)?,
         _ => Vec::new(),
     };
-    let sem_match = if text::is_question(query) {
-        SEM_MATCH
-    } else {
-        SEM_MATCH_KEYWORDS
-    };
+    let judge = Judge::new(&semantic);
 
     let similarity_of: HashMap<i64, &SemanticHit> =
         semantic.iter().map(|hit| (hit.seq, hit)).collect();
@@ -185,9 +235,9 @@ pub fn search(
     for hit in words {
         seen.insert(hit.seq);
         let sem = similarity_of.get(&hit.seq);
-        let similarity = sem.map_or(0.0, |s| s.similarity);
-        let score = combine(hit.coverage, semantic_strength(similarity));
-        let tier = if hit.coverage >= MATCH_COVERAGE || similarity >= sem_match {
+        let similarity = sem.map_or(f32::MIN, |s| s.similarity);
+        let score = combine(hit.coverage, judge.strength(similarity));
+        let tier = if hit.coverage >= MATCH_COVERAGE || judge.is_match(similarity) {
             Tier::Match
         } else {
             Tier::Weak
@@ -208,11 +258,11 @@ pub fn search(
     let mut semantic_matches = 0;
     let only_semantic: Vec<&SemanticHit> = semantic
         .iter()
-        .filter(|hit| !seen.contains(&hit.seq) && hit.similarity >= SEM_WEAK)
+        .filter(|hit| !seen.contains(&hit.seq) && judge.is_weak(hit.similarity))
         .take(MAX_SEMANTIC_MATCHES + MAX_WEAK)
         .collect();
     for hit in only_semantic {
-        let tier = if hit.similarity >= sem_match && semantic_matches < MAX_SEMANTIC_MATCHES {
+        let tier = if judge.is_match(hit.similarity) && semantic_matches < MAX_SEMANTIC_MATCHES {
             semantic_matches += 1;
             Tier::Match
         } else {
@@ -226,7 +276,7 @@ pub fn search(
         let found = SearchHit {
             note,
             highlights,
-            score: combine(0.0, semantic_strength(hit.similarity)),
+            score: combine(0.0, judge.strength(hit.similarity)),
             tier,
         };
         match tier {
@@ -284,8 +334,10 @@ mod tests {
         let conn = db.lock();
         sample(&conn);
         let hits = search(&conn, "Heizung im Bad", Range::All, None).unwrap();
-        assert_eq!(hits.len(), 1);
+        assert_eq!(hits.len(), 2);
         assert_eq!(hits[0].tier, Tier::Match);
+        // „Heizung“ findet über den Wortstamm auch „Heizkosten“
+        assert!(hits[1].note.text.contains("Heizkosten"));
         assert_eq!(
             slice(&hits[0].note.text, hits[0].highlights[0]),
             "Heizung Bad"
@@ -311,7 +363,7 @@ mod tests {
         let hits = search(&conn, "Bremsen Heizung Bad", Range::All, None).unwrap();
         assert!(hits[0].score > hits[1].score);
         let tiers: Vec<_> = hits.iter().map(|hit| hit.tier).collect();
-        assert_eq!(tiers, [Tier::Match, Tier::Weak]);
+        assert_eq!(tiers, [Tier::Match, Tier::Weak, Tier::Weak]);
     }
 
     #[test]
@@ -380,17 +432,13 @@ mod tests {
         let mut embedder = semantic::tests::FakeEmbedder;
         while semantic::process_pending(&db, &mut embedder, 2).unwrap() > 0 {}
         let conn = db.lock();
-        // „Heizkosten“ teilt kein Wort mit „Heizung“, aber die Bedeutung (Fake: „heiz“)
+        // „Thermostat“ steht in keiner Notiz, die Bedeutung (Fake: „heiz“) findet
+        // aber die Heizkosten und markiert den passenden Satz.
         let vector = embedder.embed_query("Heizung").unwrap();
-        let hits = search(&conn, "wann war die Heizung", Range::All, Some(&vector)).unwrap();
-        let texts: Vec<_> = hits
-            .iter()
-            .map(|h| (h.note.text.as_str(), h.tier))
-            .collect();
-        assert_eq!(texts.len(), 2, "{texts:?}");
-        assert_eq!(hits[0].tier, Tier::Match);
-        assert!(hits[0].note.text.starts_with("Heizung Bad"));
-        let costs = &hits[1];
+        let query = "wann war das mit dem Thermostat";
+        let hits = search(&conn, query, Range::All, Some(&vector)).unwrap();
+        assert_eq!(hits.len(), 1);
+        let costs = &hits[0];
         assert!(costs.note.text.starts_with("Nebenkosten"));
         assert_eq!(costs.tier, Tier::Match);
         assert_eq!(
@@ -399,12 +447,7 @@ mod tests {
         );
 
         // Ohne Vektor: nur Volltext
-        assert_eq!(
-            search(&conn, "wann war die Heizung", Range::All, None)
-                .unwrap()
-                .len(),
-            1
-        );
+        assert!(search(&conn, query, Range::All, None).unwrap().is_empty());
     }
 
     #[test]
