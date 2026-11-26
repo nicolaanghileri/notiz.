@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { Editor } from "./components/Editor";
 import { NotesView } from "./components/NotesView";
+import { SearchView } from "./components/SearchView";
 import { FILTER_LABELS, Sidebar } from "./components/Sidebar";
 import { ToastProvider, errorText, useToast } from "./components/Toast";
 import * as api from "./lib/api";
 import { modKey } from "./lib/platform";
+import { cx } from "./components/ui";
 import { applyTheme } from "./lib/theme";
 import type { Filter, Note, NoteCounts } from "./lib/types";
 
@@ -46,6 +48,8 @@ function Shell() {
   const [view, setView] = useState<View>({ kind: "notes", filter: "all" });
   const [lastFilter, setLastFilter] = useState<Filter>("all");
   const [version, setVersion] = useState(0);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  void settingsOpen;
   const [counts, setCounts] = useState<NoteCounts | null>(null);
   const toast = useToast();
 
@@ -120,6 +124,7 @@ function Shell() {
     });
   }, []);
 
+  const searchMounted = view.kind === "search" || (view.kind === "editor" && view.back === "search");
   const active = view.kind === "notes" ? view.filter : view.kind === "search" ? "search" : view.back === "search" ? "search" : view.back;
 
   return (
@@ -130,7 +135,7 @@ function Shell() {
         onFilter={showFilter}
         onNew={newNote}
         onSearch={() => setView({ kind: "search" })}
-        onSettings={() => {}}
+        onSettings={() => setSettingsOpen(true)}
       />
       <main className="relative min-w-0 flex-1 overflow-hidden rounded-panel border border-border bg-panel">
         {view.kind === "notes" && (
@@ -143,6 +148,7 @@ function Shell() {
         )}
         {view.kind === "editor" && (
           <Editor
+            onOpenSettings={() => setSettingsOpen(true)}
             key={view.session}
             noteId={view.id}
             backLabel={view.back === "search" ? "Suche" : FILTER_LABELS[view.back]}
@@ -154,10 +160,15 @@ function Shell() {
             }
           />
         )}
-        {view.kind === "search" && (
-          <button className="m-8 text-muted" onClick={() => showFilter(lastFilter)}>
-            ← zurück (folgt)
-          </button>
+        {searchMounted && (
+          <div className={cx("h-full", view.kind !== "search" && "hidden")}>
+            <SearchView
+              active={view.kind === "search"}
+              onOpen={(note) => openNote(note, "search")}
+              onClose={() => showFilter(lastFilter)}
+              onOpenSettings={() => setSettingsOpen(true)}
+            />
+          </div>
         )}
       </main>
     </div>
